@@ -20,22 +20,7 @@ output "bucket_name" {
   description = "GCP Bucket name."
 }
 
-output "elb_ip" {
-  value       = google_compute_address.elb_ip.address
-  description = "External Load Balancer IP."
-}
-
-output "ilb_ip" {
-  value       = google_compute_address.ilb_ip.address
-  description = "Internal Load Balancer IP."
-}
-
-output "vpc_external" {
-  value       = module.vpc_external
-  description = "External VPC."
-}
-
-output "vpc_internal" {
-  value       = module.vpc_internal
-  description = "Internal VPC."
+output "ilb_ips" {
+  description = "List of Internal Load Balancer IPs. Empty \"\" means no Internal Load Balancer IP for this port."
+  value       = [for nic in local.nic_list : nic.ilb_ip]
 }

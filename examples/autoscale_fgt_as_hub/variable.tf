@@ -22,7 +22,7 @@ variable "zone" {
   type        = string
   description = <<-EOF
   Deploy the project to this single zone.
-  Variable zone is mutually exclusive with variable zones.
+  Variable "zone" is mutually exclusive with variable "zones".
   If both zone and zones are specified, zones will be used.
   If neither is specified, GCP will select 3 zones for you.
   EOF
@@ -33,10 +33,10 @@ variable "zones" {
   type        = list(string)
   description = <<-EOF
   Deploy the project to multiple zones for higher availability.
-  Variable zones is mutually exclusive with variable zone.
+  Variable "zones" is mutually exclusive with variable "zone".
   If both zone and zones are specified, zones will be used.
   If neither is specified, GCP will select 3 zones for you.
-  EOF  
+  EOF
   default     = []
 }
 
@@ -88,10 +88,10 @@ variable "image_type" {
   type        = string
   default     = "fortigate-76-byol"
   description = <<-EOF
- The type of public FortiGate Image. Example: "fortigate-76-byol" or "fortigate-76-payg"
+  The type of public FortiGate Image. Example: "fortigate-76-byol" or "fortigate-76-payg"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" will be used.
   Use the following command to check all FGT image type:
-  "gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq"
+  `gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq`
 
   fortigate-76-byol : FortiGate 7.6, bring your own licenses.
   
@@ -106,12 +106,6 @@ variable "image_source" {
   The source of the custom image. Example: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" will be used.
   EOF
-}
-
-variable "fgt_has_public_ip" {
-  type        = bool
-  default     = false
-  description = "If set to true, port1 of all FGTs will have a public IP."
 }
 
 variable "additional_disk" {
@@ -142,105 +136,103 @@ variable "additional_disk" {
 }
 
 # Network
-variable "external_subnet" {
-  type        = string
-  description = "The CIDR of the external VPC for this project. This IP range is used only for FGTs."
-}
-
-variable "internal_subnet" {
-  type        = string
-  description = "The CIDR of the internal VPC for this project. This IP range is used only for FGTs and internal load balancer."
-}
-
-# User network information
-variable "protected_vpc" {
+variable "network_interfaces" {
   type = list(object({
-    name = string
+    network_name  = string
+    subnet_name   = string
+    has_public_ip = optional(bool, false)
+    internal_lb = optional(object({
+      front_end_ip         = optional(string, "")
+      frontend_protocol    = optional(string, "TCP")
+      backend_protocol     = optional(string, "TCP")
+      ip_range_route_to_lb = optional(string, "")
+      })
+    )
   }))
-  default     = []
   description = <<-EOF
-    List of your existing VPCs. These VPCs should not have a default route ("0.0.0.0/0"), otherwise their traffic will not be sent to the FGT.
-  
-    If "protected_vpc" is specified, your VPCs will be peered with this project's internal VPC.
-    And outbound and inbound traffic from your VPCs will go through the FGTs.
+    Network interfaces.
 
     Options:
 
-      - name : (Required | string) Name of your existing VPC.
+        - network_name  : (Required | string) The name of your existing VPC.
+        - subnet_name   : (Required | string) The name of your existing subnet under the "network_interfaces.network_name".
+        - has_public_ip : (Optional | bool | default:false) Whether this port has a public IP. The default is False.
+        - internal_lb   : (Optional | object) If "internal_lb" is specified, an internal load balancer will be created in the "subnet_name" subnet.
+            - front_end_ip : (Optional | string | default:"") The IP of your internal load balancer. If not specified, GCP will select an IP for you.
+            - frontend_protocol : (Optional | string | default:"TCP") Protocol of the front-end forwarding rule. Valid options are TCP, UDP, ESP, AH, SCTP, ICMP and L3_DEFAULT.
+            - backend_protocol : (Optional | string | default:"TCP") The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
+            - ip_range_route_to_lb : (Optional | string | default:"") If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
+                  All traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
 
     Example:
     ```
-    protected_vpc = [
-      { 
-        name = "user1-network"
+    network_interfaces = [                        # Network interface of your FortiGate
+      # Port 1 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+      {
+        network_name  = "user1-network"           # Name of your network.
+        subnet_name   = "user1-subnetc"           # The name of your existing subnet.
+        has_public_ip = true                      # Whether FortiGates in this network have public IP. Default is false.
+        internal_lb = {                           # If "internal_lb" is specified, an internal load balancer will be created in the "subnet_name" subnet.
+          ip_range_route_to_lb = "10.0.0.0/8"     # If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
+                                                  # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
+        }
       },
-      { 
-        name = "user2-network"
-      }
+      # Port 2 of your FortiGate. This interface has one ilb, but doesn't have route to the ilb.
+      {
+        network_name  = "user2-network"
+        subnet_name   = "user2-subnet"
+        internal_lb = {}
+      },
+      # Port 3 of your FortiGate. This interface doesn't specify "internal_lb", so no ilb and route to ilb will be created.
+      {
+        network_name  = "user3-network"
+        subnet_name   = "user3-subnet"
+      },
+      # You can specify more ports here
+      # ...
     ]
     ```
   EOF
 }
 
-# LB
-variable "load_balancer" {
-  type = object({
-    health_check_port = optional(number, 8008)
-    internal_lb = optional(object({
-      front_end_ip      = optional(string, "")
-      frontend_protocol = optional(string, "TCP")
-      backend_protocol  = optional(string, "TCP")
-      }), {}
-    )
-    external_lb = optional(object({
-      frontend_protocol = optional(string, "TCP")
-      backend_protocol  = optional(string, "TCP")
-      }), {}
-    )
-  })
-  default     = {}
+variable "network_tags" {
+  type        = list(string)
+  default     = []
   description = <<-EOF
-    Parameters for external and internal load balancers.
-
-    Options:
-
-        - health_check_port : (Optional | number | default:8008) The port to be used for health check.
-        - internal_lb : (Optional | object) The parameters of internal load balancer.
-            - front_end_ip : (Optional | string | default:"") Front end IP of the internal load balancer. It should be in the internal subnet IP range. Set by the API if undefined.
-            - frontend_protocol : (Optional | string | default:"TCP") Protocol of the front-end forwarding rule. Valid options are TCP, UDP, ESP, AH, SCTP, ICMP and L3_DEFAULT.
-            - backend_protocol : (Optional | string | default:"TCP") The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
-        - external_lb : (Optional | object) The parameters of external load balancer.
-            - frontend_protocol : (Optional | string | default:"TCP") Protocol of the front-end forwarding rule. Valid options are TCP, UDP, ESP, AH, SCTP, ICMP and L3_DEFAULT.
-            - backend_protocol : (Optional | string | default:"TCP") The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
-
-    Example:
-    ```
-    load_balancer = {
-      health_check_port = 8008
-      internal_lb = {
-        front_end_ip      = "10.0.1.100"
-        frontend_protocol = "TCP"
-        backend_protocol  = "TCP"
-      }
-      external_lb = {
-        frontend_protocol = "TCP"
-        backend_protocol  = "TCP"
-      }
-    }
-    ```
+  The list of network tags attached to FortiGates.
+  GCP firewall rules have "target tags", and these firewall rules only apply to instances with the same tag.
+  You can specify the tags here.
   EOF
 }
 
+variable "ha_sync_interface" {
+  type        = string
+  description = <<-EOF
+  The port used to sync data between FortiGates. Example values: "port1", "port2", "port3"... 
+  If you specified 8 interfaces in "network_interfaces",
+  then the first interface is "port1", the second one is "port2", the last one is "port8".
+  
+  Example:
+    ```
+    # Please make sure you at least have 4 interfaces specified in "network_interfaces" if you set it to "port4".
+    ha_sync_interface = "port4"   
+    ```
+  EOF
+  validation {
+    condition     = can(regex("^port[1-8]$", var.ha_sync_interface))
+    error_message = "The ha_sync_interface must be one of 'port1', 'port2', ..., 'port8'."
+  }
+}
 
 # Cloud function
 variable "cloud_function" {
   type = object({
-    function_ip_range   = string
-    license_source      = optional(string, "none")
-    license_file_folder = optional(string, "./licenses")
-    autoscale_psksecret = optional(string, "psksecret")
-    print_debug_msg     = optional(bool, false) # Deprecated, use logging_level instead
-    logging_level       = optional(string, "NOT_SPECIFIED")
+    cloud_func_interface = optional(string, "port1")
+    function_ip_range    = string
+    license_source       = optional(string, "none")
+    license_file_folder  = optional(string, "./licenses")
+    autoscale_psksecret  = optional(string, "psksecret")
+    logging_level        = optional(string, "NONE")
     fortiflex = optional(object({
       retrieve_mode = optional(string, "use_stopped")
       username      = optional(string, "")
@@ -249,7 +241,7 @@ variable "cloud_function" {
     }), {})
     service_config = optional(object({
       max_instance_count               = optional(number, 1)
-      max_instance_request_concurrency = optional(number, 1)
+      max_instance_request_concurrency = optional(number, 2)
       available_cpu                    = optional(string, "1")
       available_memory                 = optional(string, "1G")
       timeout_seconds                  = optional(number, 240)
@@ -257,11 +249,16 @@ variable "cloud_function" {
     additional_variables = optional(map(string), {})
   })
   description = <<-EOF
-    Parameters for cloud function. The cloud function is used to inject licenses to FGTs,
+    Parameters for Cloud Function. The Cloud Function is used to inject licenses to FGTs,
     upload user-specified configurations and manage the FGT autoscale group.
 
     Options:
 
+        - cloud_func_interface : (Optional | string | default:"port1")
+          To communicate with FGTs, the Cloud Function must be connected to the VPC where FGTs also exist.
+          By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
+          You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
+          But you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
         - function_ip_range : (Required | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
           This IP range subnet cannot be used by other resources, such as VMs, Private Service Connect, or load balancers.
         - license_source : (Optional | string | default:"none") The source of license if your image_type is "byol".
@@ -271,9 +268,7 @@ variable "cloud_function" {
             "file_fortiflex" : Injecting licenses based on license files first. If all license files are in use, try FortiFlex next.
         - license_file_folder : (Optional | string | default:"./licenses") The folder where all ".lic" license files are located. Default is "./licenses" folder.
         - autoscale_psksecret : (Optional | string | default:"psksecret") The secret key used to synchronize information between FortiGates. If not set, the module will randomly generate a 16-character secret key.
-        - print_debug_msg : (Optional | bool | default:false) Deprecated, use logging_level instead. If set to true, the cloud function will print debug messages. You can find these messages in Google Cloud Logs Explorer.
-        - logging_level : (Optional | string | default:"NOT_SPECIFIED") Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
-        For backward compatibility reasons, the default value "NOT_SPECIFIED" functions the same as "NONE" and logs nothing unless you set the deprecated "print_debug_msg" to true, in which case it acts like "INFO".
+        - logging_level : (Optional | string | default:"INFO") Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
         - fortiflex: (Optional | object) You need to specify this parameter if your license_source is "fortiflex" or "file_fortiflex".
             - retrieve_mode : (Optional | string | default:"use_stopped") How to retrieve an existing fortiflex license (entitlement):
                 "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
@@ -283,12 +278,12 @@ variable "cloud_function" {
             - config : (Reuqired if license_source is "fortiflex" or "file_fortiflex" | string | default:"") The configuration ID of your FortiFlex configuration (product type should be FortiGate-VM).
         - service_config : (Optional | object) This parameter controls the instance that runs the cloud function.
             - max_instance_count : (Optional | number | default:1) The limit on the maximum number of function instances that may coexist at a given time.
-            - max_instance_request_concurrency : (Optional | number | default:1) Sets the maximum number of concurrent requests that cloud function can handle at the same time.
+            - max_instance_request_concurrency : (Optional | number | default:2) Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
             - available_cpu : (Optional | string | default:"1") The number of CPUs used in a single container instance.
             - available_memory : (Optional | string | default:"1G") The amount of memory available for a function. Supported units are k, M, G, Mi, Gi. If no unit is supplied the value is interpreted as bytes.
             - timeout_seconds : (Optional | number | default:240) The function execution timeout. Execution is considered failed and can be terminated if the function is not completed at the end of the timeout period.
         - additional_variables : (Optional | map | default: {}) Additional variables used in cloud function. It is used to specify example-specific variables.
-    
+
     Example:
     ```
     cloud_function = {
@@ -312,6 +307,10 @@ variable "cloud_function" {
     }
     ```
   EOF
+  validation {
+    condition     = can(regex("^port[1-8]$", var.cloud_function.cloud_func_interface))
+    error_message = "The cloud_func_interface must be one of 'port1', 'port2', ..., 'port8'."
+  }
 }
 
 # AutoScaler
@@ -333,12 +332,12 @@ variable "autoscaler" {
     Auto Scaler parameters. This variable controls when to autoscale and the maximum number of instances.
     Options:
 
-        - max_instances    : (Required | number) The maximum number of FGT instances.
-        - min_instances    : (Optional | number | default:2) The minimum number of FGT instances.
-        - cooldown_period  : (Optional | number | default:300) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
-        - cpu_utilization  : (Optional | number | default:0.9) Autoscaling signal. If cpu utilization above this value, google cloud will create new FGT instance.
+        - max_instances     : (Required | number) The maximum number of FGT instances.
+        - min_instances     : (Optional | number | default:2) The minimum number of FGT instances.
+        - cooldown_period   : (Optional | number | default:300) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
+        - cpu_utilization   : (Optional | number | default:0.9) Autoscaling signal. If cpu utilization above this value, google cloud will create new FGT instance.
         - autohealing       : (Optional | Object) Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
-            - health_check_port   : (Optional | number | default:8008) The port used for health checks by autohealing. Set it to 0 to disable autohealing.
+            - health_check_port   : (Optional | number | default:8008) The port used for health checks by autohealing.
             - timeout_sec         : (Optional | number | default:5) How long (in seconds) to wait before claiming a health check failure.
             - check_interval_sec  : (Optional | number | default:30) How often (in seconds) to send a health check.
             - unhealthy_threshold : (Optional | number | default:10) A so-far healthy instance will be marked unhealthy after this many consecutive failures.

@@ -25,6 +25,7 @@ resource "google_compute_region_backend_service" "backend" {
   dynamic "backend" {
     for_each = var.backends_list
     content {
+      balancing_mode = "CONNECTION" # For google provider 6.0 compatibility issue
       group = backend.value
     }
   }

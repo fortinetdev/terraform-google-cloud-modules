@@ -8,40 +8,46 @@ locals {
 module "fortigate_asg" {
   source = "../../modules/fortigate/fgt_asg_with_function"
 
-  prefix       = var.prefix
-  hostname     = "${local.prefix}group"
-  fgt_password = var.fgt_password
-  project      = var.project
-  zone         = var.zone
-  region       = var.region
-  machine_type = var.machine_type
-  image_type   = var.image_type
+  prefix                = var.prefix
+  service_account_email = var.service_account_email
+  hostname              = "${local.prefix}group"
+  fgt_password          = var.fgt_password
+  project               = var.project
+  zone                  = var.zone
+  zones                 = var.zones
+  region                = var.region
+  machine_type          = var.machine_type
+  image_type            = var.image_type
+  image_source          = var.image_source
 
   network_interfaces = [
     {
       subnet_name   = "${local.prefix}external"
       has_public_ip = var.fgt_has_public_ip
+      elb_ip        = google_compute_address.elb_ip.address
     },
     {
       subnet_name = "${local.prefix}internal"
+      ilb_ip      = google_compute_address.ilb_ip.address
     },
   ]
   additional_disk = var.additional_disk
   config_script   = local.config_script
   network_tags    = ["external-access", "internal-access"]
   cloud_function = {
-    vpc_network         = module.vpc_external.network.self_link
-    function_ip_range   = var.cloud_function.function_ip_range
-    license_source      = var.cloud_function.license_source
-    license_file_folder = var.cloud_function.license_file_folder
-    autoscale_psksecret = var.cloud_function.autoscale_psksecret
-    print_debug_msg     = var.cloud_function.print_debug_msg
-    fortiflex           = var.cloud_function.fortiflex
-    service_config      = var.cloud_function.service_config
+    vpc_network          = module.vpc_external.network.self_link
+    function_ip_range    = var.cloud_function.function_ip_range
+    license_source       = var.cloud_function.license_source
+    license_file_folder  = var.cloud_function.license_file_folder
+    autoscale_psksecret  = var.cloud_function.autoscale_psksecret
+    print_debug_msg      = var.cloud_function.print_debug_msg # Deprecated, use logging_level instead
+    logging_level        = var.cloud_function.logging_level
+    fortiflex            = var.cloud_function.fortiflex
+    service_config       = var.cloud_function.service_config
+    additional_variables = var.cloud_function.additional_variables
   }
   autoscaler = var.autoscaler
-  depends_on = [module.vpc_external, module.vpc_internal,
-  google_compute_address.elb_ip, google_compute_address.ilb_ip]
+  depends_on = [module.vpc_external, module.vpc_internal]
 }
 
 resource "google_compute_address" "elb_ip" {

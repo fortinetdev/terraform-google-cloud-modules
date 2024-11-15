@@ -1,21 +1,21 @@
-# Example: Autoscale FortiGate with Load Balancer Sandwich
+# Example: Autoscale FortiGate as Center Hub.
 
-Autoscale FortiGate with Load Balancer Sandwich offers a dynamically scalable network security solution that efficiently manages the traffic flowing in and out of your VPCs.
+Utilize Autoscale FortiGate as a central hub to connect up to eight existing VPCs. FortiGates connect your VPCs and manage traffic between VPCs.
 
 ## Architecture
 
-The "autoscale_fgt_lb_sandwich" Terraform project comprises an `Auto-Scale FortiGate Group`, two `VPCs`, an `External Load Balancer`, and an `Internal Load Balancer`. It uses `Google Cloud Function` and `Firestore Database` to designate a primary FortiGate and to manage license deployment across the FortiGates. It uses `Google Bucket Storage` to store cloud function code and license files.
+The "autoscale_fgt_as_hub" Terraform project contains one `Auto-Scale FortiGate Group`, one or more `Internal Load Balancer` and `Route` to the front IP of `Internal Load Balancer`. You need to provide your existing VPCs (8 at most). 
+It uses `Google Cloud Function` and `Firestore Database` to designate a primary FortiGate and to manage license deployment across the FortiGates. It uses `Google Bucket Storage` to store cloud function code and license files.
+
 
 **Architecture Diagram:**
-![Diagram](./images/autoscale_fgt_lb_sandwich.svg)
+![Diagram](./images/autoscale_fgt_as_hub.svg)
 
 The `Auto-Scale FortiGate Group` consists of dynamically scalable FortiGates, including one primary FortiGate VM and potentially multiple secondary FortiGate VMs. Configurations are set on the primary FortiGate and automatically synchronized across all secondary FortiGates. If the primary FortiGate fail, the Google Cloud Function will promote the oldest secondary FortiGate to take its place.
 
-Each FortiGate is equipped with two network interfaces (NICs): one connects to the `External VPC` and the other to the `Internal VPC`.
+Each FortiGate can at most have 8 network interfaces (NICs). Each interface is connecting to your existing VPC.
 
-Your VPCs will establish a VPC peering connection with the `Internal VPC`. All outbound traffic is then directed to the `Internal Load Balancer` and passed on to the `Auto-Scale FortiGate Group`. It is crucial that your VPCs do not retain a default route ("0.0.0.0/0") to ensure traffic is properly routed through this architecture.
-
-The roles of `Google Cloud Function` and `Firestore Database` include selecting the primary FortiGate and administering license injections into the FortiGates.
+You need to assign one interface for `Google Cloud Function` to communicate with your FortiGates (variable `cloud_function.cloud_func_interface`, default value is "port1"). And one interface to syncing information between FortiGates (variable `ha_sync_interface`).
 
 ## Requirements
 
@@ -46,12 +46,13 @@ Please do not destroy *"(default)"* database once it is created. Please do not t
 
 ## How To Deploy
 
-You can find the template in [`/examples/autoscale_fgt_lb_sandiwch/terraform.tfvars.template`](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/examples/autoscale_fgt_lb_sandwich/terraform.tfvars.template)
+You can find the template in [`/examples/autoscale_fgt_as_hub/terraform.tfvars.template`](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/examples/autoscale_fgt_as_hub/terraform.tfvars.template)
+
 
 #### Project Variables:
 ```
 project = "<YOUR-OWN-VALUE>"        # Your GCP project name.
-prefix  = "lb-sandwich"             # Prefix of the objects in this example. It should be unique to avoid name conflict between examples.
+prefix  = "fgt-hub"                 # Prefix of the objects in this example. It should be unique to avoid name conflict between examples.
 region  = "<YOUR-OWN-VALUE>"        # e.g., "us-central1"
 zones   = ["<YOUR-OWN-VALUE1>",     # e.g., ["us-central1-b", "us-central1-c"]. Deploy FortiGates across multiple zones.
            "<YOUR-OWN-VALUE2>"]     # If zones is empty, GCP will select 3 zones for you.
@@ -65,11 +66,11 @@ Modify these variables based on your needs.
 
 If you want to deploy more than one examples, please make sure the `prefix` of those examples are different.
 
+
 #### FortiGate Variables:
 ```
 fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
 machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
-fgt_has_public_ip = false           # If set to true, port1 of all FGTs will have a public IP.
 
 # FortiGate image.
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
@@ -94,8 +95,6 @@ Example of predefined machine type: "n1-standard-4", "n2-standard-8", ...
 The value "n1-standard-4" in the template is just an example for demonstration. It may not be suitable for your task. Please change the `machine_type` to match your needs.
 You can find more supported machine types [here](https://docs.fortinet.com/document/fortigate-public-cloud/7.6.0/gcp-administration-guide/304081).
 
-`fgt_has_public_ip` means whether to allow FortiGate to have a public IP. If set to true, port1 of all FGTs will have a public IP.
-
 The variable `image_type` and variable `image_source` are mutually exclusive, only one variable can be specified. Specify `image_type` to deploy the latest public FortiGate image, or `image_source` to use a custom image.
 
 `image_type` represents the type of FGT image. You can use the command `gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq` to get all possible values.
@@ -110,56 +109,80 @@ If `additional_disk` is specified, every FGT will have its own log disk, and the
 
 #### Network Variables:
 ```
-external_subnet = "192.168.0.0/22"  # The CIDR of the external VPC for this project. This IP range is used only for FGTs.
-internal_subnet = "192.168.4.0/22"  # The CIDR of the internal VPC for this project. This IP range is used only for FGTs and internal load balancer.
-# protected_vpc = [                 # List of your existing VPCs (The LANs your want to protect). If specified, outbound and inbound traffic from these VPCs will first go through the FGTs.
-#   {name = "<YOUR-VPC-NAME-1>"},
-#   {name = "<YOUR-VPC-NAME-2>"}
-# ]
-```
-`external_subnet` is the IP range of the external VPC in the architecture diagram. This IP range should only be used by Auto-Scale FortiGates and should not overlap with the IP range of your existing VPCs.
-
-`internal_subnet` is the IP range of the internal VPC in the architecture diagram. This IP range should only be used by Auto-Scale FortiGates and should not overlap with the IP range of your existing VPCs.
-
-`protected_vpc` is a list of your existing VPCs. It is "Your VPC A", "Your VPC B"... in the architecture diagram. If this variable is specified, outbound and inbound traffic from these VPCs will first go through the Auto-Scale FortiGate Group. These VPCs should not have a default route ("0.0.0.0/0"), otherwise their outbound traffic will not be redirected to this project.
-
-
-#### Load Balancer Variables:
-```
-load_balancer = {
-  health_check_port = 8008              # The port to be used for health check.
-  internal_lb = {
-    front_end_ip      = "192.168.4.100" # Front end IP of the internal load balancer. It should be in the "internal_subnet" IP range. Set by the API if undefined.
-    frontend_protocol = "TCP"           # Protocol of the front-end forwarding rule. Valid options are TCP, UDP, ESP, AH, SCTP, ICMP and L3_DEFAULT.
-    backend_protocol  = "TCP"           # The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
+network_interfaces = [
+  # Port 1 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  {
+    network_name  = "user1-network"        # Name of your network.
+    subnet_name   = "user1-subnet"         # Name of your subnet.
+    has_public_ip = true                   # Whether FortiGates in this network have public IP. Default is false.
+    internal_lb = {                        # If "internal_lb" is specified, an internal load balancer will be created in the "subnet_name" subnet.
+      ip_range_route_to_lb = "10.0.0.0/8"  # If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
+                                           # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
+    }
+  },
+  # Port 2 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  {
+    network_name = "user2-network"
+    subnet_name  = "user2-subnet"
+    internal_lb = {
+      ip_range_route_to_lb = "10.0.0.0/8"
+    }
+  },
+  # Port 3 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  {
+    network_name = "user3-network"
+    subnet_name  = "user3-subnet"
+    internal_lb = {
+      ip_range_route_to_lb = "10.0.0.0/8"
+    }
+  },
+  # Port 4 of your FortiGate. This interface doesn't specify "internal_lb", so no ilb and route to ilb will be created.
+  {
+    network_name = "user4-network"
+    subnet_name  = "user4-subnet"
   }
-  external_lb = {
-    frontend_protocol = "TCP"           # Protocol of the front-end forwarding rule. Valid options are TCP, UDP, ESP, AH, SCTP, ICMP and L3_DEFAULT.
-    backend_protocol  = "TCP"           # The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
-  }
-}
+]
+network_tags = ["<YOUR-OWN-VALUE1>", "<YOUR-OWN-VALUE2>"]  # The list of network tags attached to FortiGates.
+ha_sync_interface = "port4"                # Please make sure you at least have N interfaces specified in "network_interfaces" if you set it to "portN".
 ```
-Parameters for external and internal load balancers. 
 
-You can leave most variables at their default values, except for `internal_lb -> frontend_ip`, which should be in the `internal_subnet` IP range.
+`network_interfaces[N].network_name` is the name of your existing VPC.
+
+`network_interfaces[N].subnet_name` is the name of your existing subnet under the `network_name`.
+
+`network_interfaces[N].has_public_ip` indicates whether this port has a public IP. The default is False.
+
+`network_interfaces[N].internal_lb` is `null` or a dictionary. Its default value is `null`. If `internal_lb` is specified (`internal_lb={}`), an internal load balancer will be created under the subnet `subnet_name`.
+
+`network_interfaces[N].internal_lb.front_end_ip` is the IP of your internal load balancer. If not specified, GCP will select an IP for you.
+
+`network_interfaces[N].internal_lb.ip_range_route_to_lb` helps you to create a route. If it is specified, a route will be created in the subnet `subnet_name` . All traffic to `ip_range_route_to_lb` will be routed to the internal load balancer (ilb) in this subnet.
+
+`network_tags` is a list of network tags attached to FortiGates. GCP firewall rules have "target tags", and these firewall rules only apply to instances with the same tag. You can specify the tags here.
+
+`ha_sync_interface` is the port used to sync data between FortiGates. Example values: "port1", "port2", "port3"...  If you specified 8 interfaces in `network_interfaces`, then the first interface is "port1", the second one is "port2", the last one is "port8".
 
 #### Cloud Function Variables:
 ```
 cloud_function = {
+  cloud_func_interface = "port1"           # To communicate with FGTs, the Cloud Function must be connected to the VPC where FGTs also exist.
+                                           # By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
+                                           # You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
+                                           # But you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
   function_ip_range   = "192.168.8.0/28"   # Cloud function needs to have its own CIDR ip range ending with "/28", which cannot be used by other resources.
   license_source      = "file"             # The source of license if your image_type is "fortigate-xx-byol".
                                            # Possible value: "none", "fortiflex", "file", "file_fortiflex"
   license_file_folder = "./licenses"       # The folder where all ".lic" license files are located.
   autoscale_psksecret = "<RANDOM-STRING>"  # The secret key used to synchronize information between FortiGates. If not set, the module will randomly generate a 16-character secret key.
-  logging_level       = "NONE"             # Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE".
+  logging_level       = "INFO"             # Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
   # "fortiflex" parameters is required if license_source is "fortiflex" or "file_fortiflex"
   # fortiflex = {
-  #   retrieve_mode = "use_active"         # How to retrieve an existing fortiflex license (entitlement)
-  #                                        # "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
-  #                                        # "use_active" selects one active and unused entitlement where the description field is empty.
-  #   username      = "<YOUR-OWN-VALUE>"   # The username of your FortiFlex account.
-  #   password      = "<YOUR-OWN-VALUE>"   # The password of your FortiFlex account.
-  #   config        = <YOUR-OWN-VALUE>     # The config ID of your FortiFlex configuration.
+  #   retrieve_mode = "use_active"           # How to retrieve an existing fortiflex license (entitlement)
+  #                                          # "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
+  #                                          # "use_active" selects one active and unused entitlement where the description field is empty.
+  #   username      = "<YOUR-OWN-VALUE>"     # The username of your FortiFlex account.
+  #   password      = "<YOUR-OWN-VALUE>"     # The password of your FortiFlex account.
+  #   config        = <YOUR-OWN-VALUE>       # The config ID of your FortiFlex configuration.
   # }
 
   # This parameter controls the instance that runs the cloud function.
@@ -174,7 +197,11 @@ cloud_function = {
   # additional_variables = {}               # Additional Cloud Function Variables
 }
 ```
+
 Cloud function is used to manage FGT synchronization and inject license into FGT.
+
+`cloud_func_interface` is the interface of the FortiGates communicate with the Cloud Function. The default value is "port1".
+By default, this project assumes the Cloud Function connects to the first VPC you specified in `network_interfaces`, and configure your FGTs through "port1". You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port. If this value is not "port1", you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
 
 `function_ip_range` is used by cloud function. This IP range needs to end with "/28" and cannot be used by any other resources.
 
@@ -187,7 +214,6 @@ Cloud function is used to manage FGT synchronization and inject license into FGT
 `autoscale_psksecret` is the secret key used to synchronize information between FortiGates. If not set, this project will randomly generate a 16-character secret key. You can find it in the output.
 
 `logging_level` is used to control the verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". Logs can be viewed in the Google Cloud Logs Explorer. If you set logging_level to "INFO", all logs of "INFO" severity or higher ("INFO", "WARN", "ERROR") will be recorded.
-(The previous variable `"print_debug_msg"` has been deprecated, and will be removed in the future.)
 
 `fortiflex` is required if your `license_source` is "fortiflex".
 The cloud function will retrieve your existing unused FortiFlex entitlements and use them to inject licenses into FortiGates.
@@ -215,7 +241,6 @@ cloud_function = {
 }
 ```
 
-
 #### Autoscaler Variables:
 ```
 autoscaler = {
@@ -241,23 +266,22 @@ Autoscaler is used to control when to autoscale and control the number of FortiG
 
 `cpu_utilization` is the autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances. Google Cloud will also delete idle FGT instances if CPU utilization is low for a long time.
 
-`autohealing.health_check_port` is the port used for health checks by autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.  Set it to 0 to disable autohealing. `load_balancer.health_check_port` is used for the load balancer and it can't be disabled. Normally, `autoscaler.autohealing.health_check_port` and `load_balancer.health_check_port` should have the same port number, and its default is 8008 for FortiGates. 
-
+`autohealing.health_check_port` is the port used for health checks by autohealing and health checks by load balancers.
 
 #### Additional FGT configuration script.
 
 **NOTE: After deploying this terraform project, changing the variable `config_script` (and contents in `config_file`) will not change the FortiGate configuration.**
 
-The following script is just an example: it allows all inbound and outbound traffic, and it also allows traffic between your VPCs (protected LANs).
+The following script is just an example: it allows all traffic between port1 and port2.
 
 Please modify the script based on your needs.
 
 ```
 config_script = <<EOF
 config firewall policy
-    # Allow all internal to external traffic
+    # Allow all port2 to port1 traffic
     edit 0
-        set name "internal_to_external"
+        set name "port2_to_port1"
         set srcintf "port2"
         set dstintf "port1"
         set action accept
@@ -265,11 +289,10 @@ config firewall policy
         set dstaddr "all"
         set schedule "always"
         set service "ALL"
-        set nat enable
     next
-    # Allow all external to internal traffic
+    # Allow all port1 to port2 traffic
     edit 0
-        set name "external_to_internal"
+        set name "port1_to_port2"
         set srcintf "port1"
         set dstintf "port2"
         set action accept
@@ -278,9 +301,9 @@ config firewall policy
         set schedule "always"
         set service "ALL"
     next
-    # Allow all internal to internal traffic (traffic between protected LANs)
+    # Allow all port2 to port2 traffic
     edit 0
-        set name "internal_to_internal"
+        set name "port2_to_port2"
         set srcintf "port2"
         set dstintf "port2"
         set action accept
@@ -289,26 +312,25 @@ config firewall policy
         set schedule "always"
         set service "ALL"
     next
-end
-# Allow FGTs to route external traffic to protected LAN.
-config router static
+    # Allow all port1 to port1 traffic
     edit 0
-        # Assume all your VPCs (protected LANs) are in 10.0.0.0/8
-        # Assume all protected LANs connect to port2
-        # Assume internal subnet gateway is 192.168.4.1 (internal_subnet is 192.168.4.0/22)
-        set dst 10.0.0.0/8
-        set gateway 192.168.4.1
-        set device "port2"
+        set name "port1_to_port1"
+        set srcintf "port1"
+        set dstintf "port1"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
     next
 end
 EOF
-
-# config_file = "<YOUR-OWN-VALUE>"  # e.g., your_config_file.conf
 ```
 
 In addition to the variable config_script, you can also save the configuration script as a file and upload the script using the variable config_file.
 
 If you specify both config_script and config_file, this terraform project will upload both of them.
+
 
 ## FortiGates Licenses
 
@@ -328,12 +350,47 @@ To use FortiGates, you need to provide the necessary licenses. Here are the avai
 
 After deploying this terraform project, the `config_script` and contents within the `config_file` become immutable. Subsequent modifications to the `config_script` or the `config_file` will not affect the configuration of existing FortiGates.
 
-In "Google Cloud Firestore -> (default) -> \<YOUR-PROJECT-PREFIX\> -> GLOBAL", you can access the global information of this terraform project. The `"primary_ip_list"` (e.g., ["192.168.0.2", "192.168.4.2"]) indicates the IPs of the primary FortiGate. The first IP is in the `External VPC` and the second IP is in the `Internal VPC`. If you have already specified `protected_vpc`, any VM within your `protected_vpc` can SSH into the primary FortiGate. Any changes made to the configuration of the primary FortiGate will propagate automatically to all secondary FortiGates. If no `protected_vpc` has been specified, you may set up a VM in either the `External VPC` or the `Internal VPC` to SSH into the primary FortiGate.
+If you specified `has_public_ip = true` in `network_interfaces[0]`, you can login your FortiGates through their public IP.
+
+In "Google Cloud Firestore -> (default) -> \<YOUR-PROJECT-PREFIX\> -> GLOBAL", you can access the global information of this terraform project. The `"primary_ip_list"` (e.g., ["10.0.0.3", "10.1.0.3", "10.2.0.3", "10.3.0.3"]) indicates the private IPs of the primary FortiGate. The first IP is in the subnet `network_interfaces[0].subnet_name`, and the second IP is in the subnet `network_interfaces[1].subnet_name`... You can use SSH to log in to your primary FortiGate.
 
 The default username is `"admin"`. You can get the password by using the command `terraform output fgt_password`
 
+## Create a New VPC and Subenet
+
+This example assumes that you already have existing VPCs and subnets. It only requires the subnet names.
+
+If you do not have existing VPCs, you can create them using the following scripts.
+
+```
+module "example_vpc" {
+  source = "fortinetdev/cloud-modules/google//modules/gcp/vpc"
+
+  network_name = "<your-network-name>"
+
+  subnets = [
+    {
+      name          = "<your-subnet-name>"             # subnet name should be unique in your GCP project.
+      region        = "us-central1"                    # Region of your subnet
+      ip_cidr_range = "10.0.0.0/24"                    # CIDR of your subnet
+    }
+  ]
+
+  # Example firewall, you can change it based on your needs.
+  firewall_rules = [
+    {
+      name          = "<your-firewall-name>"
+      source_ranges = ["0.0.0.0/0"]
+      target_tags   = ["<network-tag-name>"]           # Network tags. All GCP instances with the tag "<network-tag-name>" will follow this firewall rule.
+      allow = [
+        {
+          protocol = "all"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Others
 **Even if `terraform apply` is complete, FortiGates require time to initialize, load licenses and synchronize within the auto-scaling group, which may take 5 to 10 minutes. During this period, the FortiGates will be unavailable.**
-
-To reduce disruption to your VPCs, initially run `terraform apply` without defining `protected_vpc`. Once all FortiGates in the project are fully initialized, execute `terraform apply` again, this time specifying `protected_vpc`.
