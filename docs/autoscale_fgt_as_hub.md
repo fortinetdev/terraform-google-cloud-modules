@@ -71,6 +71,7 @@ If you want to deploy more than one examples, please make sure the `prefix` of t
 ```
 fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
 machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
+# fgt_hostname = "example-hostname" # The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
 
 # FortiGate image.
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
@@ -110,7 +111,7 @@ If `additional_disk` is specified, every FGT will have its own log disk, and the
 #### Network Variables:
 ```
 network_interfaces = [
-  # Port 1 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  # Port 1 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB) and a route to the ILB.
   {
     network_name  = "user1-network"        # Name of your network.
     subnet_name   = "user1-subnet"         # Name of your subnet.
@@ -120,23 +121,22 @@ network_interfaces = [
                                            # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
     }
   },
-  # Port 2 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  # Port 2 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB). (No route to the ILB).
   {
     network_name = "user2-network"
     subnet_name  = "user2-subnet"
-    internal_lb = {
-      ip_range_route_to_lb = "10.0.0.0/8"
-    }
+    internal_lb = {}
   },
-  # Port 3 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+  # Port 3 of your FortiGate. No ILB and route to ILB will be created. Using existing ILB instead.
+  # You need to manually add the FGT instance group as the backend of the existing ILB in Google Cloud after the deployment of this example project.
   {
     network_name = "user3-network"
     subnet_name  = "user3-subnet"
-    internal_lb = {
-      ip_range_route_to_lb = "10.0.0.0/8"
+    additional_variables = {
+      ilb_ip = "10.2.0.100"
     }
   },
-  # Port 4 of your FortiGate. This interface doesn't specify "internal_lb", so no ilb and route to ilb will be created.
+  # Port 4 of your FortiGate. This interface doesn't specify "internal_lb", so no ILB and route to ILB will be created.
   {
     network_name = "user4-network"
     subnet_name  = "user4-subnet"
@@ -158,6 +158,8 @@ ha_sync_interface = "port4"                # Please make sure you at least have 
 
 `network_interfaces[N].internal_lb.ip_range_route_to_lb` helps you to create a route. If it is specified, a route will be created in the subnet `subnet_name` . All traffic to `ip_range_route_to_lb` will be routed to the internal load balancer (ilb) in this subnet.
 
+`network_interfaces[N].additional_variables.ilb_ip`. If you want to use an existing ILB, you can specify this variable without creating a new ILB. This variable will configure the FGT's interface to support ILB. **This variable does not connect the FGT instance group to your existing ILB. You need to manually add the FGT instance group as the backend of the existing ILB in Google Cloud after the deployment of this example project.**
+
 `network_tags` is a list of network tags attached to FortiGates. GCP firewall rules have "target tags", and these firewall rules only apply to instances with the same tag. You can specify the tags here.
 
 `ha_sync_interface` is the port used to sync data between FortiGates. Example values: "port1", "port2", "port3"...  If you specified 8 interfaces in `network_interfaces`, then the first interface is "port1", the second one is "port2", the last one is "port8".
@@ -167,8 +169,8 @@ ha_sync_interface = "port4"                # Please make sure you at least have 
 cloud_function = {
   cloud_func_interface = "port1"           # To communicate with FGTs, the Cloud Function must be connected to the VPC where FGTs also exist.
                                            # By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
-                                           # You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
-                                           # But you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
+                                           # You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port,
+                                           # but you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
   function_ip_range   = "192.168.8.0/28"   # Cloud function needs to have its own CIDR ip range ending with "/28", which cannot be used by other resources.
   license_source      = "file"             # The source of license if your image_type is "fortigate-xx-byol".
                                            # Possible value: "none", "fortiflex", "file", "file_fortiflex"
@@ -201,7 +203,26 @@ cloud_function = {
 Cloud function is used to manage FGT synchronization and inject license into FGT.
 
 `cloud_func_interface` is the interface of the FortiGates communicate with the Cloud Function. The default value is "port1".
-By default, this project assumes the Cloud Function connects to the first VPC you specified in `network_interfaces`, and configure your FGTs through "port1". You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port. If this value is not "port1", you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
+By default, this project assumes the Cloud Function connects to the first VPC you specified in `network_interfaces`, and configure your FGTs through "port1". You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
+If you set `cloud_func_interface = portX` and "portX" is not the default value "port1", you need to specify
+```
+config_script = <<EOF
+# Using following scripts to let FortiGates respond Cloud Function
+# "set allowaccess https" is required for interface <portX>.
+config system interface
+  edit <portX>
+    set allowaccess ping https ssh fgfm probe-response
+  next
+end
+config router static
+  edit 0
+    set dst <vault of cloud_function.function_ip_range>
+    set device <portX>
+    set gateway <gateway of portX>
+  next
+end
+EOF
+```
 
 `function_ip_range` is used by cloud function. This IP range needs to end with "/28" and cannot be used by any other resources.
 
@@ -224,8 +245,8 @@ You also need to provide a FortiGate configuration `config` (A digital number). 
 
 `additional_variables` specifies additional variables used by Cloud Function. Some variables are too trivial or **not recommended to be changed**. You can specify them here to overwrite the behavior of the Cloud Function for more customization.
 
-- "HA_SYNC_INTERFACE": (default: "port2") The port used for HA synchronization.
-- "CLOUD_FUNC_INTERFACE": (default: "port1") Cloud function uses this port to communicate with FortiGates. If CLOUD_FUNC_INTERFACE is not "port1", please also add corresponding route rules in `config_script` (or `config_file`) so FortiGate can respond to the Cloud Function requests.
+To get advice on how to specify `additional_variables` to suit your custom needs, please create an GitHub issue at https://github.com/fortinetdev/terraform-google-cloud-modules
+
 - "FIRESTORE_DATABASE": (default: "(default)") The Firestore database that Cloud Function used to store data.
 
 ```
@@ -234,8 +255,6 @@ cloud_function = {
 
     # Only set additional_variables when needed.
     additional_variables = {
-      # HA_SYNC_INTERFACE    = "port2"
-      # CLOUD_FUNC_INTERFACE = "port1"
       # FIRESTORE_DATABASE   = "YOUR-EXISTING-DATABASE-NAME"   # Default value is "(default)"
     }
 }
@@ -254,6 +273,7 @@ autoscaler = {
     # check_interval_sec = 30  # How often (in seconds) to send a health check.
     # unhealthy_threshold = 10 # A so-far healthy instance will be marked unhealthy after this many consecutive failures.
   }
+  scale_in_control_sec = 300   # When the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds.
 }
 ```
 Autoscaler is used to control when to autoscale and control the number of FortiGate instances.
@@ -267,6 +287,8 @@ Autoscaler is used to control when to autoscale and control the number of FortiG
 `cpu_utilization` is the autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances. Google Cloud will also delete idle FGT instances if CPU utilization is low for a long time.
 
 `autohealing.health_check_port` is the port used for health checks by autohealing and health checks by load balancers.
+
+`scale_in_control_sec` can prevent the aggressive scale down. If `scale_in_control_sec` is not 0, when the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds. By default, its value is 300.
 
 #### Additional FGT configuration script.
 

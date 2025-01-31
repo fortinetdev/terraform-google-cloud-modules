@@ -71,6 +71,14 @@ variable "fgt_password" {
   }
 }
 
+variable "fgt_hostname" {
+  type        = string
+  default     = ""
+  description = <<-EOF
+  The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
+  EOF
+}
+
 variable "machine_type" {
   type        = string
   description = <<-EOF
@@ -239,7 +247,6 @@ variable "cloud_function" {
     license_source      = optional(string, "none")
     license_file_folder = optional(string, "./licenses")
     autoscale_psksecret = optional(string, "psksecret")
-    print_debug_msg     = optional(bool, false) # Deprecated, use logging_level instead
     logging_level       = optional(string, "NOT_SPECIFIED")
     fortiflex = optional(object({
       retrieve_mode = optional(string, "use_stopped")
@@ -264,6 +271,7 @@ variable "cloud_function" {
 
         - function_ip_range : (Required | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
           This IP range subnet cannot be used by other resources, such as VMs, Private Service Connect, or load balancers.
+          A static route will be created in the FGT that routes data destined for "cloud_function.function_ip_range" to port1.
         - license_source : (Optional | string | default:"none") The source of license if your image_type is "byol".
             "none" : Don't inject licenses to FGTs.
             "file" : Injecting licenses based on license files. All license files should be in license_file_folder.
@@ -271,9 +279,7 @@ variable "cloud_function" {
             "file_fortiflex" : Injecting licenses based on license files first. If all license files are in use, try FortiFlex next.
         - license_file_folder : (Optional | string | default:"./licenses") The folder where all ".lic" license files are located. Default is "./licenses" folder.
         - autoscale_psksecret : (Optional | string | default:"psksecret") The secret key used to synchronize information between FortiGates. If not set, the module will randomly generate a 16-character secret key.
-        - print_debug_msg : (Optional | bool | default:false) Deprecated, use logging_level instead. If set to true, the cloud function will print debug messages. You can find these messages in Google Cloud Logs Explorer.
-        - logging_level : (Optional | string | default:"NOT_SPECIFIED") Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
-        For backward compatibility reasons, the default value "NOT_SPECIFIED" functions the same as "NONE" and logs nothing unless you set the deprecated "print_debug_msg" to true, in which case it acts like "INFO".
+        - logging_level : (Optional | string | default:"NONE") Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
         - fortiflex: (Optional | object) You need to specify this parameter if your license_source is "fortiflex" or "file_fortiflex".
             - retrieve_mode : (Optional | string | default:"use_stopped") How to retrieve an existing fortiflex license (entitlement):
                 "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
@@ -328,6 +334,7 @@ variable "autoscaler" {
       unhealthy_threshold = optional(number, 10)
       }), {}
     )
+    scale_in_control_sec = optional(number, 300)
   })
   description = <<-EOF
     Auto Scaler parameters. This variable controls when to autoscale and the maximum number of instances.
@@ -337,11 +344,12 @@ variable "autoscaler" {
         - min_instances    : (Optional | number | default:2) The minimum number of FGT instances.
         - cooldown_period  : (Optional | number | default:300) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
         - cpu_utilization  : (Optional | number | default:0.9) Autoscaling signal. If cpu utilization above this value, google cloud will create new FGT instance.
-        - autohealing       : (Optional | Object) Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
+        - autohealing      : (Optional | Object) Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
             - health_check_port   : (Optional | number | default:8008) The port used for health checks by autohealing. Set it to 0 to disable autohealing.
             - timeout_sec         : (Optional | number | default:5) How long (in seconds) to wait before claiming a health check failure.
             - check_interval_sec  : (Optional | number | default:30) How often (in seconds) to send a health check.
             - unhealthy_threshold : (Optional | number | default:10) A so-far healthy instance will be marked unhealthy after this many consecutive failures.
+        - scale_in_control_sec : (Optional | number | default:300)  When the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds.
 
     Example:
     ```
@@ -350,6 +358,7 @@ variable "autoscaler" {
         min_instances   = 2
         cooldown_period = 300
         cpu_utilization = 0.9
+        scale_in_control_sec = 300
     }
     ```
     EOF

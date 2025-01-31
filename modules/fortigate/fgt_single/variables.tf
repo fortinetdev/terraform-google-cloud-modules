@@ -83,7 +83,7 @@ variable "image_source" {
 variable "licensing" {
   type = object({
     license_file    = optional(string, "")
-    fortiflex_token = optional(string, 0)
+    fortiflex_token = optional(string, "")
   })
   default     = {}
   description = <<-EOF

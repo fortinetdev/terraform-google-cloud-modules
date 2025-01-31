@@ -2,13 +2,19 @@ locals {
   prefix             = "${var.prefix}-"
   config_file_script = var.config_file != "" ? file(var.config_file) : ""
   config_script      = var.config_script != "" ? "${var.config_script}\n${local.config_file_script}" : local.config_file_script
+  interfaces_need_lb = {
+    for ni in var.network_interfaces : ni.network_name => ni
+    if ni.internal_lb != null
+  }
   nic_list = [
-    for ni in var.network_interfaces : {
+    for ni in var.network_interfaces : merge({
       subnet_name   = ni.subnet_name
       has_public_ip = ni.has_public_ip
-      ilb_ip        = lookup(google_compute_address.ilb_ip, ni.network_name, null) != null ? google_compute_address.ilb_ip[ni.network_name].address : ""
+      ilb_ip        = lookup(local.interfaces_need_lb, ni.network_name, null) != null ? google_compute_address.ilb_ip[ni.network_name].address : ""
       elb_ip        = ""
-    }
+      },
+      ni.additional_variables != null ? ni.additional_variables : {}
+    )
   ]
   func_port_index = tonumber(regex("port(\\d+)", var.cloud_function.cloud_func_interface)[0]) - 1
 }
@@ -19,7 +25,7 @@ module "fortigate_asg" {
 
   prefix                = var.prefix
   service_account_email = var.service_account_email
-  hostname              = "${local.prefix}group"
+  hostname              = var.fgt_hostname
   fgt_password          = var.fgt_password
   project               = var.project
   zone                  = var.zone
@@ -49,7 +55,8 @@ module "fortigate_asg" {
       }
     )
   }
-  autoscaler = var.autoscaler
+  autoscaler       = var.autoscaler
+  special_behavior = var.special_behavior
   depends_on = [
     google_compute_address.ilb_ip
   ]
@@ -67,10 +74,7 @@ resource "google_compute_region_health_check" "hc" {
 }
 
 resource "google_compute_address" "ilb_ip" {
-  for_each = {
-    for ni in var.network_interfaces : ni.network_name => ni
-    if can(ni.internal_lb.frontend_protocol)
-  }
+  for_each     = local.interfaces_need_lb
   name         = "${local.prefix}ilb-ip-${each.value.subnet_name}"
   address      = each.value.internal_lb.front_end_ip == "" ? null : each.value.internal_lb.front_end_ip
   address_type = "INTERNAL"
@@ -78,10 +82,7 @@ resource "google_compute_address" "ilb_ip" {
 }
 
 module "internal_lb" {
-  for_each = {
-    for ni in var.network_interfaces : ni.network_name => ni
-    if can(ni.internal_lb.frontend_protocol)
-  }
+  for_each          = local.interfaces_need_lb
   source            = "../../modules/gcp/lb"
   prefix            = "${local.prefix}ilb-${each.value.subnet_name}"
   region            = var.region
@@ -103,8 +104,8 @@ module "internal_lb" {
 
 resource "google_compute_route" "default_route" {
   for_each = {
-    for ni in var.network_interfaces : ni.network_name => ni
-    if try(ni.internal_lb.ip_range_route_to_lb != "", false)
+    for network_name, ni in local.interfaces_need_lb : network_name => ni
+    if ni.internal_lb.ip_range_route_to_lb != ""
   }
   name         = "${local.prefix}route-${each.value.network_name}"
   dest_range   = each.value.internal_lb.ip_range_route_to_lb

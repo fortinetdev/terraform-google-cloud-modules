@@ -1,15 +1,17 @@
 locals {
   prefix                = "${var.prefix}-"
-  fgt_password          = var.fgt_password == "" ? random_password.fgt_password[0].result : var.fgt_password
+  fgt_password          = (local.use_fgt_passwd && var.fgt_password == "") ? random_password.fgt_password[0].result : var.fgt_password
   autoscale_psksecret   = var.cloud_function.autoscale_psksecret == "" ? random_password.autoscale_psksecret[0].result : var.cloud_function.autoscale_psksecret
   bucket_name           = "${var.prefix}-bucket-${random_string.bucket_id.result}"
   zone_mode             = (var.zone != "" && length(var.zones) == 0) ? "single" : "multiple"
   iam_member            = var.service_account_email == "" ? data.google_compute_default_service_account.default.member : data.google_service_account.iam[0].member
   service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default.email : var.service_account_email
+  use_fgt_passwd        = !var.special_behavior.disable_secret_manager
+  use_fortiflex_passwd  = !var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != ""
 }
 
 resource "random_password" "fgt_password" {
-  count   = var.fgt_password == "" ? 1 : 0
+  count   = (local.use_fgt_passwd && var.fgt_password == "") ? 1 : 0
   length  = 16
   special = false
 }
@@ -31,19 +33,20 @@ data "google_service_account" "iam" {
 
 resource "google_storage_bucket_iam_member" "bucket_access" {
   bucket = google_storage_bucket.gcf_bucket.name
-  role = "roles/storage.admin"
+  role   = "roles/storage.admin"
   member = local.iam_member
 }
 
 resource "google_secret_manager_secret_iam_member" "fortiflex_password" {
-  count     = var.cloud_function.fortiflex.password != "" ? 1 : 0
+  count     = local.use_fortiflex_passwd ? 1 : 0
   secret_id = google_secret_manager_secret.fortiflex_password[0].id
   role      = "roles/secretmanager.secretAccessor"
   member    = local.iam_member
 }
 
 resource "google_secret_manager_secret_iam_member" "instance_password" {
-  secret_id = google_secret_manager_secret.instance_password.id
+  count     = local.use_fgt_passwd ? 1 : 0
+  secret_id = google_secret_manager_secret.instance_password[0].id
   role      = "roles/secretmanager.secretAccessor"
   member    = local.iam_member
 }
@@ -99,9 +102,8 @@ resource "google_compute_region_instance_template" "main" {
 
   metadata = {
     user-data = templatefile("${path.module}/bootstrap.conf", {
-      hostname           = var.hostname
-      network_interfaces = var.network_interfaces
-      config_script      = var.config_script
+      hostname      = var.hostname
+      config_script = var.config_script
     })
   }
 
@@ -111,6 +113,7 @@ resource "google_compute_region_instance_template" "main" {
   }
   depends_on = [google_cloudfunctions2_function.init_instance]
   lifecycle {
+    create_before_destroy = true
     ignore_changes = [
       metadata
     ]
@@ -196,6 +199,16 @@ resource "google_compute_region_autoscaler" "autoscaler" {
     max_replicas    = var.autoscaler.max_instances
     min_replicas    = var.autoscaler.min_instances
     cooldown_period = var.autoscaler.cooldown_period
+
+    dynamic "scale_in_control" {
+      for_each = var.autoscaler.scale_in_control_sec != 0 ? [1] : []
+      content {
+        max_scaled_in_replicas {
+          fixed = 1
+        }
+        time_window_sec = var.autoscaler.scale_in_control_sec
+      }
+    }
 
     cpu_utilization {
       target = var.autoscaler.cpu_utilization

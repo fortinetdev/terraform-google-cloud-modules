@@ -1,3 +1,27 @@
+## 1.2.0 (January 31, 2025)
+
+IMPROVEMENTS:
+
+* Module `fgt_single`:
+  * Changed the default value `licensing->fortiflex_token` from 0 to "" (empty string).
+* Module `fgt_asg_with_function`:
+  * Improved the primary FGT reselection logic in function script.
+  * The deprecated parameter `cloud_function->print_debug_msg` has been removed, please use `cloud_function->logging_level`.
+  * Added a new static route to the FGTs' configuration that routes data destined for `cloud_function.function_ip_range` to port `cloud_function.cloud_func_interface`.
+  * Added new variable `autoscaler->scale_in_control_sec`. When the FortiGate group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds.
+  * Supported connecting with the Vault server to read secret data. Added 3 new internal variables `VAULT_SERVER`, `VAULT_ROLE`, and `VAULT_PATH` in the Cloud Function.
+  * Added `count` to some resources related to the `fgt_password`. Some resources are moved, but the functions remain unchanged. E.g., `google_secret_manager_secret_iam_member.instance_password` has moved to `google_secret_manager_secret_iam_member.instance_password[0]`.
+  * Added new variable `special_behavior` for customized functionality. Do not use it unless explicitly instructed by the developer.
+* Example `autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+  * By default, this example does not specify the FortiGate hostname. The new variable `fgt_hostname` can set the hostname of all FGTs in the autoscale group. If this variable is not specified, the hostname of the FGT will be its serial number.
+  * Added a new static route to the FGTs' configuration that routes data destined for `cloud_function.function_ip_range` to port1.
+* Example `autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+  * By default, this example does not specify the FortiGate hostname. The new variable `fgt_hostname` can set the hostname of all FGTs in the autoscale group. If this variable is not specified, the hostname of the FGT will be its serial number.
+  * To use existing ILB, you can specify the ILB IP without creating a new ILB by specifying `network_interfaces->additional_variables->ilb_ip`. For example: `network_interfaces = [{network_name="example-network", subnet_name="example-subnet", additional_variables={ilb_ip="10.0.0.100"}}]`. This script will configure the FGT's interface to support ILB. You need to manually add the FGT instance group as the backend of the existing ILB in Google Cloud after the deployment of this example project.
+
+
 ## 1.1.0 (Nov 1, 2024)
 
 FEATURES:

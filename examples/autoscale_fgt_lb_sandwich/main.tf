@@ -10,7 +10,7 @@ module "fortigate_asg" {
 
   prefix                = var.prefix
   service_account_email = var.service_account_email
-  hostname              = "${local.prefix}group"
+  hostname              = var.fgt_hostname
   fgt_password          = var.fgt_password
   project               = var.project
   zone                  = var.zone
@@ -40,7 +40,6 @@ module "fortigate_asg" {
     license_source       = var.cloud_function.license_source
     license_file_folder  = var.cloud_function.license_file_folder
     autoscale_psksecret  = var.cloud_function.autoscale_psksecret
-    print_debug_msg      = var.cloud_function.print_debug_msg # Deprecated, use logging_level instead
     logging_level        = var.cloud_function.logging_level
     fortiflex            = var.cloud_function.fortiflex
     service_config       = var.cloud_function.service_config

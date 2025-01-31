@@ -70,6 +70,7 @@ If you want to deploy more than one examples, please make sure the `prefix` of t
 fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
 machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
 fgt_has_public_ip = false           # If set to true, port1 of all FGTs will have a public IP.
+# fgt_hostname = "example-hostname" # The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
 
 # FortiGate image.
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
@@ -177,6 +178,7 @@ cloud_function = {
 Cloud function is used to manage FGT synchronization and inject license into FGT.
 
 `function_ip_range` is used by cloud function. This IP range needs to end with "/28" and cannot be used by any other resources.
+A static route will be created in the FGT that routes data destined for `cloud_function.function_ip_range` to port1.
 
 `license_source` is the source of your license. If your `image_type` ends with "byol" (bring your own license), you need to specify your license source here. Possible values are
 - "none": Don't inject licenses to FGTs.
@@ -187,7 +189,7 @@ Cloud function is used to manage FGT synchronization and inject license into FGT
 `autoscale_psksecret` is the secret key used to synchronize information between FortiGates. If not set, this project will randomly generate a 16-character secret key. You can find it in the output.
 
 `logging_level` is used to control the verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". Logs can be viewed in the Google Cloud Logs Explorer. If you set logging_level to "INFO", all logs of "INFO" severity or higher ("INFO", "WARN", "ERROR") will be recorded.
-(The previous variable `"print_debug_msg"` has been deprecated, and will be removed in the future.)
+(The previous variable `"print_debug_msg"` has been deprecated and removed.)
 
 `fortiflex` is required if your `license_source` is "fortiflex".
 The cloud function will retrieve your existing unused FortiFlex entitlements and use them to inject licenses into FortiGates.
@@ -197,6 +199,8 @@ You also need to provide a FortiGate configuration `config` (A digital number). 
 `service_config` is a variable that controls the instance on which the cloud function runs. You can increase `max_instance_request_concurrency` to allow multiple injection license requests to run simultaneously. You need to increase `available_memory` if your `max_instance_request_concurrency` is high and running out of existing memory.
 
 `additional_variables` specifies additional variables used by Cloud Function. Some variables are too trivial or **not recommended to be changed**. You can specify them here to overwrite the behavior of the Cloud Function for more customization.
+
+To get advice on how to specify `additional_variables` to suit your custom needs, please create an GitHub issue at https://github.com/fortinetdev/terraform-google-cloud-modules
 
 - "HA_SYNC_INTERFACE": (default: "port2") The port used for HA synchronization.
 - "CLOUD_FUNC_INTERFACE": (default: "port1") Cloud function uses this port to communicate with FortiGates. If CLOUD_FUNC_INTERFACE is not "port1", please also add corresponding route rules in `config_script` (or `config_file`) so FortiGate can respond to the Cloud Function requests.
@@ -229,6 +233,7 @@ autoscaler = {
     # check_interval_sec = 30  # How often (in seconds) to send a health check.
     # unhealthy_threshold = 10 # A so-far healthy instance will be marked unhealthy after this many consecutive failures.
   }
+  scale_in_control_sec = 300   # When the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds.
 }
 ```
 Autoscaler is used to control when to autoscale and control the number of FortiGate instances.
@@ -241,8 +246,9 @@ Autoscaler is used to control when to autoscale and control the number of FortiG
 
 `cpu_utilization` is the autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances. Google Cloud will also delete idle FGT instances if CPU utilization is low for a long time.
 
-`autohealing.health_check_port` is the port used for health checks by autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.  Set it to 0 to disable autohealing. `load_balancer.health_check_port` is used for the load balancer and it can't be disabled. Normally, `autoscaler.autohealing.health_check_port` and `load_balancer.health_check_port` should have the same port number, and its default is 8008 for FortiGates. 
+`autohealing.health_check_port` is the port used for health checks by autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.  Set it to 0 to disable autohealing. `load_balancer.health_check_port` is used for the load balancer and it can't be disabled. Normally, `autoscaler.autohealing.health_check_port` and `load_balancer.health_check_port` should have the same port number, and its default is 8008 for FortiGates.
 
+`scale_in_control_sec` can prevent the aggressive scale down. If `scale_in_control_sec` is not 0, when the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds. By default, its value is 300.
 
 #### Additional FGT configuration script.
 

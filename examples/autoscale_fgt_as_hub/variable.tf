@@ -71,6 +71,14 @@ variable "fgt_password" {
   }
 }
 
+variable "fgt_hostname" {
+  type        = string
+  default     = ""
+  description = <<-EOF
+  The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
+  EOF
+}
+
 variable "machine_type" {
   type        = string
   description = <<-EOF
@@ -148,6 +156,7 @@ variable "network_interfaces" {
       ip_range_route_to_lb = optional(string, "")
       })
     )
+    additional_variables = optional(map(string), {})
   }))
   description = <<-EOF
     Network interfaces.
@@ -163,30 +172,42 @@ variable "network_interfaces" {
             - backend_protocol : (Optional | string | default:"TCP") The protocol the load balancer uses to communicate with the backend. Valid options are HTTP, HTTPS, HTTP2, SSL, TCP, UDP, GRPC, UNSPECIFIED.
             - ip_range_route_to_lb : (Optional | string | default:"") If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
                   All traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
+        - additional_variables : (Optional | object) Additional variables.
+            - ilb_ip : (Optional | string) The IP of your internal load balancer.
+                  If you don't specify internal_lb and specify ilb_ip here instead, this Terraform project only tells the FGTs the IP of ILB, and doesn't create ILB in GCP.
 
     Example:
     ```
-    network_interfaces = [                        # Network interface of your FortiGate
-      # Port 1 of your FortiGate. This interface has one internal load balancer (ilb), and a route to the ilb.
+    network_interfaces = [                     # Network interface of your FortiGate
+      # Port 1 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB) and a route to the ILB.
       {
-        network_name  = "user1-network"           # Name of your network.
-        subnet_name   = "user1-subnetc"           # The name of your existing subnet.
-        has_public_ip = true                      # Whether FortiGates in this network have public IP. Default is false.
-        internal_lb = {                           # If "internal_lb" is specified, an internal load balancer will be created in the "subnet_name" subnet.
-          ip_range_route_to_lb = "10.0.0.0/8"     # If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
-                                                  # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
+        network_name  = "user1-network"        # Name of your network.
+        subnet_name   = "user1-subnet"         # Name of your subnet.
+        has_public_ip = true                   # Whether FortiGates in this network have public IP. Default is false.
+        internal_lb   = {                      # If "internal_lb" is specified, an internal load balancer will be created in the "subnet_name" subnet.
+          ip_range_route_to_lb = "10.0.0.0/8"  # If "ip_range_route_to_lb" is specified, a route will be created in the "subnet_name" subnet.
+                                               # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
         }
       },
-      # Port 2 of your FortiGate. This interface has one ilb, but doesn't have route to the ilb.
+      # Port 2 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB). (No route to the ILB).
       {
-        network_name  = "user2-network"
-        subnet_name   = "user2-subnet"
-        internal_lb = {}
+        network_name = "user2-network"
+        subnet_name  = "user2-subnet"
+        internal_lb  = {}
       },
-      # Port 3 of your FortiGate. This interface doesn't specify "internal_lb", so no ilb and route to ilb will be created.
+      # Port 3 of your FortiGate. No ILB and route to ILB will be created. Using existing ILB instead.
+      # You need to manually add the FGT instance group as the backend of the existing ILB in Google Cloud after the deployment of this example project.
       {
-        network_name  = "user3-network"
-        subnet_name   = "user3-subnet"
+        network_name = "user3-network"
+        subnet_name  = "user3-subnet"
+        additional_variables = {
+          ilb_ip = "10.2.0.100"
+        }
+      },
+      # Port 4 of your FortiGate. This interface doesn't specify "internal_lb", so no ILB and route to ILB will be created.
+      {
+        network_name = "user4-network"
+        subnet_name  = "user4-subnet"
       },
       # You can specify more ports here
       # ...
@@ -257,10 +278,11 @@ variable "cloud_function" {
         - cloud_func_interface : (Optional | string | default:"port1")
           To communicate with FGTs, the Cloud Function must be connected to the VPC where FGTs also exist.
           By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
-          You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
-          But you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
+          You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port,
+          but you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
         - function_ip_range : (Required | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
           This IP range subnet cannot be used by other resources, such as VMs, Private Service Connect, or load balancers.
+          A static route will be created in the FGT that routes data destined for "cloud_function.function_ip_range" to port "cloud_function.cloud_func_interface".
         - license_source : (Optional | string | default:"none") The source of license if your image_type is "byol".
             "none" : Don't inject licenses to FGTs.
             "file" : Injecting licenses based on license files. All license files should be in license_file_folder.
@@ -327,6 +349,7 @@ variable "autoscaler" {
       unhealthy_threshold = optional(number, 10)
       }), {}
     )
+    scale_in_control_sec = optional(number, 300)
   })
   description = <<-EOF
     Auto Scaler parameters. This variable controls when to autoscale and the maximum number of instances.
@@ -341,6 +364,7 @@ variable "autoscaler" {
             - timeout_sec         : (Optional | number | default:5) How long (in seconds) to wait before claiming a health check failure.
             - check_interval_sec  : (Optional | number | default:30) How often (in seconds) to send a health check.
             - unhealthy_threshold : (Optional | number | default:10) A so-far healthy instance will be marked unhealthy after this many consecutive failures.
+        - scale_in_control_sec : (Optional | number | default:300)  When the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds.
 
     Example:
     ```
@@ -349,6 +373,7 @@ variable "autoscaler" {
         min_instances   = 2
         cooldown_period = 300
         cpu_utilization = 0.9
+        scale_in_control_sec = 300
     }
     ```
     EOF
@@ -364,4 +389,15 @@ variable "config_file" {
   type        = string
   default     = ""
   description = "Additional FGT configuration script file."
+}
+
+variable "special_behavior" {
+  type = object({
+    disable_secret_manager  = optional(bool, false)
+  })
+  default = {}
+  description = <<-EOF
+    This variable can specify special behavior to suit various needs.
+    Do not use this variable unless instructed by the author.
+  EOF
 }

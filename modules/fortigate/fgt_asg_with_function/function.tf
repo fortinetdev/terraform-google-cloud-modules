@@ -56,7 +56,7 @@ resource "google_storage_bucket_object" "function_zip" {
 
 # Save secret password, need to enable Secret Manager API
 resource "google_secret_manager_secret" "fortiflex_password" {
-  count     = var.cloud_function.fortiflex.password != "" ? 1 : 0
+  count     = local.use_fortiflex_passwd ? 1 : 0
   secret_id = "${local.prefix}fortiflex-password"
 
   replication {
@@ -65,12 +65,13 @@ resource "google_secret_manager_secret" "fortiflex_password" {
 }
 
 resource "google_secret_manager_secret_version" "fortiflex_password" {
-  count       = var.cloud_function.fortiflex.password != "" ? 1 : 0
+  count       = local.use_fortiflex_passwd ? 1 : 0
   secret      = google_secret_manager_secret.fortiflex_password[0].id
   secret_data = var.cloud_function.fortiflex.password
 }
 
 resource "google_secret_manager_secret" "instance_password" {
+  count     = local.use_fgt_passwd ? 1 : 0
   secret_id = "${local.prefix}instance-password"
 
   replication {
@@ -79,7 +80,8 @@ resource "google_secret_manager_secret" "instance_password" {
 }
 
 resource "google_secret_manager_secret_version" "instance_password" {
-  secret      = google_secret_manager_secret.instance_password.id
+  count     = local.use_fgt_passwd ? 1 : 0
+  secret      = google_secret_manager_secret.instance_password[0].id
   secret_data = local.fgt_password
 }
 
@@ -110,9 +112,8 @@ resource "google_cloudfunctions2_function" "init_instance" {
       FORTIFLEX_USERNAME      = var.cloud_function.fortiflex.username
       FORTIFLEX_CONFIG        = var.cloud_function.fortiflex.config
       FORTIFLEX_RETRIEVE_MODE = var.cloud_function.fortiflex.retrieve_mode
-      PRINT_DEBUG_MSG         = var.cloud_function.print_debug_msg # Deprecated, use LOGGING_LEVEL instead
       LOGGING_LEVEL           = var.cloud_function.logging_level
-      MANAGEMENT_PORT         = 443
+      CLOUD_FUNC_IP_RANGE     = var.cloud_function.function_ip_range
       AUTOSCALE_PSKSECRET     = var.cloud_function.autoscale_psksecret
       BUCKET_NAME             = local.bucket_name
       ELB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.elb_ip])
@@ -120,7 +121,7 @@ resource "google_cloudfunctions2_function" "init_instance" {
     }, var.cloud_function.additional_variables)
 
     dynamic "secret_environment_variables" {
-      for_each = var.cloud_function.fortiflex.password != "" ? [1] : []
+      for_each = local.use_fortiflex_passwd ? [1] : []
       content {
         key        = "FORTIFLEX_PASSWORD"
         project_id = var.project
@@ -128,11 +129,14 @@ resource "google_cloudfunctions2_function" "init_instance" {
         version    = "latest"
       }
     }
-    secret_environment_variables {
-      key        = "INSTANCE_PASSWORD"
-      project_id = var.project
-      secret     = google_secret_manager_secret.instance_password.secret_id
-      version    = "latest"
+    dynamic "secret_environment_variables" {
+      for_each = local.use_fgt_passwd ? [1] : []
+      content {
+        key        = "INSTANCE_PASSWORD"
+        project_id = var.project
+        secret     = google_secret_manager_secret.instance_password[0].secret_id
+        version    = "latest"
+      }
     }
     vpc_connector                 = google_vpc_access_connector.vpc_connector.id
     vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
