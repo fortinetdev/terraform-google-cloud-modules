@@ -103,7 +103,10 @@ The variable `image_type` and variable `image_source` are mutually exclusive, on
 - "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to bring your own licenses (byol). You need to specify your FortiGate license source in `cloud_function -> license_source`.
 - "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
 
-`image_source` is the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+`image_source` specifies the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+After deploying the project, modifying this variable only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.
+
+Check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md) for more information about image.
 
 If `additional_disk` is specified, every FGT will have its own log disk, and the initialization time will increase by 1~2 minutes.
 
@@ -200,7 +203,7 @@ cloud_function = {
 }
 ```
 
-Cloud function is used to manage FGT synchronization and inject license into FGT.
+Cloud Function is used to manage FGT synchronization and inject license into FGT. For more information about the Cloud Function, please check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md).
 
 `cloud_func_interface` is the interface of the FortiGates communicate with the Cloud Function. The default value is "port1".
 By default, this project assumes the Cloud Function connects to the first VPC you specified in `network_interfaces`, and configure your FGTs through "port1". You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port.
@@ -415,4 +418,5 @@ module "example_vpc" {
 ```
 
 ## Others
-**Even if `terraform apply` is complete, FortiGates require time to initialize, load licenses and synchronize within the auto-scaling group, which may take 5 to 10 minutes. During this period, the FortiGates will be unavailable.**
+- **Even if `terraform apply` is complete, FortiGates require time to initialize, load licenses and synchronize within the auto-scaling group, which may take 5 to 10 minutes. During this period, the FortiGates will be unavailable.**
+- After deploying the project, modifying variable `image_source` only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.

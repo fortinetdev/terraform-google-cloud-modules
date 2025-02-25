@@ -42,6 +42,7 @@ Please do not destroy *"(default)"* database once it is created. Please do not t
 |------|---------|
 | <a name="provider_google"></a> [google](#provider\_google) | >= 5.0, <7.0 |
 | <a name="provider_random"></a> [random](#provider\_random) | n/a |
+| <a name="provider_time"></a> [time](#provider\_time) | n/a |
 
 ## Modules
 
@@ -75,6 +76,8 @@ No modules.
 | [random_password.autoscale_psksecret](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_password.fgt_password](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) | resource |
 | [random_string.bucket_id](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) | resource |
+| [time_sleep.wait_after_function_creation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
+| [time_sleep.wait_before_function_destruction](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
 | [google_compute_default_service_account.default](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_default_service_account) | data source |
 | [google_compute_image.fgt_image](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_image) | data source |
 | [google_compute_subnetwork.subnet_resources](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_subnetwork) | data source |
@@ -99,7 +102,7 @@ No modules.
 | <a name="input_project"></a> [project](#input\_project) | Your GCP project name. | `string` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | Region to deploy VM. | `string` | n/a | yes |
 | <a name="input_service_account_email"></a> [service\_account\_email](#input\_service\_account\_email) | The e-mail address of the service account used for VMs and secrets management. Example value: 1234567-compute@developer.gserviceaccount.com<br>This service account should already have "roles/datastore.user" and "roles/compute.viewer".<br>If not given, the default Google Compute Engine service account is used. | `string` | `""` | no |
-| <a name="input_special_behavior"></a> [special\_behavior](#input\_special\_behavior) | This variable can specify special behavior to suit various needs.<br>Do not use this variable unless instructed by the author. | <pre>object({<br>    disable_secret_manager  = optional(bool, false)<br>  })</pre> | `{}` | no |
+| <a name="input_special_behavior"></a> [special\_behavior](#input\_special\_behavior) | This variable can specify special behavior to suit various needs.<br>Do not use this variable unless instructed by the author. | <pre>object({<br>    disable_secret_manager  = optional(bool, false)<br>    function_creation_wait_sec = optional(number, 0)<br>    function_destruction_wait_sec = optional(number, 0)<br>  })</pre> | `{}` | no |
 | <a name="input_zone"></a> [zone](#input\_zone) | Deploy the project to this single zone.<br>Variable zone is mutually exclusive with variable zones.<br>If both zone and zones are specified, zones will be used.<br>If neither is specified, GCP will select 3 zones for you. | `string` | `""` | no |
 | <a name="input_zones"></a> [zones](#input\_zones) | Deploy the project to multiple zones for higher availability.<br>Variable zones is mutually exclusive with variable zone.<br>If both zone and zones are specified, zones will be used.<br>If neither is specified, GCP will select 3 zones for you. | `list(string)` | `[]` | no |
 

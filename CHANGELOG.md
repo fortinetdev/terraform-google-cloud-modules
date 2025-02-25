@@ -1,3 +1,17 @@
+## 1.3.0 (2025)
+
+FEATURES:
+* **New Module**: `modules/gcp/iam`. It helps you create a new service account with specified roles.
+
+IMPROVEMENTS:
+* Document: Added image guide and cloud function guide.
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Added a hash number to the `google_compute_region_instance_template` name. This enables the project to update the FGT image source without requiring a full deletion and redeployment. To upgrade the FGT version, simply change the `image_source`.
+  * Added new variables `special_behavior.function_creation_wait_sec` and `special_behavior.function_destruction_wait_sec`. If set to a nonzero value, these variables make the project wait for the specified number of seconds after creating or before destroying the cloud function.
+  * Supported FGTs connecting to FAZ. New function variables: `FAZ_IP`, `FAZ_ADOM`, `FAZ_USERNAME`, `FAZ_PASSWORD`.
+  * The `"DEBUG"` log level has been further refined into `"DEBUG"` and `"TRACE"`. The `"TRACE"` level outputs more detailed and verbose log information.
+  * Improved function logic and added `task_list` to support multi-threading related tasks.
+
 ## 1.2.0 (January 31, 2025)
 
 IMPROVEMENTS:

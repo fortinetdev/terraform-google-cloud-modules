@@ -23,6 +23,7 @@ resource "google_pubsub_topic_iam_binding" "pubsub_iam" {
 
   members = [
     google_logging_project_sink.topic.writer_identity,
+    local.iam_member
   ]
 }
 
@@ -80,7 +81,7 @@ resource "google_secret_manager_secret" "instance_password" {
 }
 
 resource "google_secret_manager_secret_version" "instance_password" {
-  count     = local.use_fgt_passwd ? 1 : 0
+  count       = local.use_fgt_passwd ? 1 : 0
   secret      = google_secret_manager_secret.instance_password[0].id
   secret_data = local.fgt_password
 }
@@ -154,7 +155,7 @@ resource "google_cloudfunctions2_function" "init_instance" {
     google_secret_manager_secret_iam_member.instance_password,
     google_secret_manager_secret_version.instance_password,
     google_pubsub_topic_iam_binding.pubsub_iam,
-    google_storage_bucket_object.license_files
+    google_storage_bucket_object.license_files,
   ]
   lifecycle {
     ignore_changes = [
@@ -162,6 +163,18 @@ resource "google_cloudfunctions2_function" "init_instance" {
     ]
     replace_triggered_by = [google_storage_bucket_object.function_zip.detect_md5hash]
   }
+}
+
+resource "time_sleep" "wait_after_function_creation" {
+  count           = var.special_behavior.function_creation_wait_sec > 0 ? 1 : 0
+  create_duration = "${var.special_behavior.function_creation_wait_sec}s"
+  depends_on      = [google_cloudfunctions2_function.init_instance]
+}
+
+resource "time_sleep" "wait_before_function_destruction" {
+  count            = var.special_behavior.function_destruction_wait_sec > 0 ? 1 : 0
+  destroy_duration = "${var.special_behavior.function_destruction_wait_sec}s"
+  depends_on       = [google_cloudfunctions2_function.init_instance]
 }
 
 resource "google_vpc_access_connector" "vpc_connector" {

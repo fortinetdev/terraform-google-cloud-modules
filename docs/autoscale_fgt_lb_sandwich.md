@@ -104,7 +104,10 @@ The variable `image_type` and variable `image_source` are mutually exclusive, on
 - "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to bring your own licenses (byol). You need to specify your FortiGate license source in `cloud_function -> license_source`.
 - "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
 
-`image_source` is the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+`image_source` specifies the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+After deploying the project, modifying this variable only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.
+
+Check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md) for more information about image.
 
 If `additional_disk` is specified, every FGT will have its own log disk, and the initialization time will increase by 1~2 minutes.
 
@@ -152,7 +155,7 @@ cloud_function = {
                                            # Possible value: "none", "fortiflex", "file", "file_fortiflex"
   license_file_folder = "./licenses"       # The folder where all ".lic" license files are located.
   autoscale_psksecret = "<RANDOM-STRING>"  # The secret key used to synchronize information between FortiGates. If not set, the module will randomly generate a 16-character secret key.
-  logging_level       = "NONE"             # Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE".
+  logging_level       = "INFO"             # Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE".
   # "fortiflex" parameters is required if license_source is "fortiflex" or "file_fortiflex"
   # fortiflex = {
   #   retrieve_mode = "use_active"         # How to retrieve an existing fortiflex license (entitlement)
@@ -175,7 +178,7 @@ cloud_function = {
   # additional_variables = {}               # Additional Cloud Function Variables
 }
 ```
-Cloud function is used to manage FGT synchronization and inject license into FGT.
+Cloud Function is used to manage FGT synchronization and inject license into FGT. For more information about the Cloud Function, please check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md).
 
 `function_ip_range` is used by cloud function. This IP range needs to end with "/28" and cannot be used by any other resources.
 A static route will be created in the FGT that routes data destined for `cloud_function.function_ip_range` to port1.
@@ -250,7 +253,7 @@ Autoscaler is used to control when to autoscale and control the number of FortiG
 
 `scale_in_control_sec` can prevent the aggressive scale down. If `scale_in_control_sec` is not 0, when the group scales down, Google Cloud will delete at most one FGT every 'scale_in_control_sec' seconds. By default, its value is 300.
 
-#### Additional FGT configuration script.
+#### Additional FGT configuration script:
 
 **NOTE: After deploying this terraform project, changing the variable `config_script` (and contents in `config_file`) will not change the FortiGate configuration.**
 
@@ -340,6 +343,6 @@ The default username is `"admin"`. You can get the password by using the command
 
 
 ## Others
-**Even if `terraform apply` is complete, FortiGates require time to initialize, load licenses and synchronize within the auto-scaling group, which may take 5 to 10 minutes. During this period, the FortiGates will be unavailable.**
-
-To reduce disruption to your VPCs, initially run `terraform apply` without defining `protected_vpc`. Once all FortiGates in the project are fully initialized, execute `terraform apply` again, this time specifying `protected_vpc`.
+- **Even if `terraform apply` is complete, FortiGates require time to initialize, load licenses and synchronize within the auto-scaling group, which may take 5 to 10 minutes. During this period, the FortiGates will be unavailable.**
+- After deploying the project, modifying variable `image_source` only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.
+- To reduce disruption to your VPCs, initially run `terraform apply` without defining `protected_vpc`. Once all FortiGates in the project are fully initialized, execute `terraform apply` again, this time specifying `protected_vpc`.

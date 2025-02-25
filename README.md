@@ -1,3 +1,5 @@
+![Fortinet logo|](https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Fortinet_logo.svg/320px-Fortinet_logo.svg.png)
+
 ## Terraform modules for Fortinet VM products on GCP
 
 Terraform modules for deploying Fortinet VM products (e.g. FortiGate VM) on GCP. 
@@ -29,24 +31,28 @@ Please click the following links for visual diagrams, requirements, example depl
 
 **Use it as a Terraform project (Examples only)**
 
-1. Navigate to the example folder (e.g., "examples/autoscale_fgt_lb_sandwich").
-2. Edit the file "terraform.tfvars.template" and rename it to "terraform.tfvars".
-3. Execute the commands `terraform init` and `terraform apply`.
+1. Clone the module to your environment. 
+2. Navigate to the example folder (e.g., "examples/autoscale_fgt_lb_sandwich").
+3. Edit the file "terraform.tfvars.template" and rename it to "terraform.tfvars".
+4. Execute the commands `terraform init` and `terraform apply`. 
 
 **Use it as a module (Examples and Modules)**
 
-1. Create a new folder and add a file named "main.tf" within this folder.
-2. In "main.tf", specify the module with the necessary parameters.
+1. Create a new folder and add a file named "main.tf" within this folder. 
+2. In "main.tf", specify the source to the target example, for instance: `"fortinetdev/cloud-modules/google//examples/autoscale_fgt_lb_sandwich"`. Provide your own values for necessary parameters of the module. There is a file named `terraform.tfvars.template` on each example, which could be a reference. 
 
-```
-module "your_module_name" {
-    source = "fortinetdev/cloud-modules/google//examples/<example_name>"
-    # source = "fortinetdev/cloud-modules/google//modules/fortigate/<module_name>"
+``` 
+module "your_module_name" { 
+    source = "fortinetdev/cloud-modules/google//examples/<example_name>" 
 
-    other_variable = "xxx"
-}
-```
+    <Specify module variables>
+} 
+``` 
 3. Execute the commands `terraform init` and `terraform apply`.
+
+## FAQ
+- [How to Specify Image](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md)
+- [What is Cloud Function](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md)
 
 ## Request, Question or Issue
 

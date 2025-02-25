@@ -8,6 +8,8 @@ locals {
   service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default.email : var.service_account_email
   use_fgt_passwd        = !var.special_behavior.disable_secret_manager
   use_fortiflex_passwd  = !var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != ""
+  image_source          = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
+  image_source_hash     = substr(sha1(local.image_source), 0, 8)
 }
 
 resource "random_password" "fgt_password" {
@@ -67,7 +69,8 @@ data "google_compute_image" "fgt_image" {
 
 # VM
 resource "google_compute_region_instance_template" "main" {
-  name           = "${local.prefix}template"
+  # If the image source changes, this template will be recreated.
+  name           = "${local.prefix}template-${local.image_source_hash}"
   region         = var.region
   machine_type   = var.machine_type
   can_ip_forward = true
@@ -76,7 +79,7 @@ resource "google_compute_region_instance_template" "main" {
 
   disk {
     boot         = true
-    source_image = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
+    source_image = local.image_source
   }
 
   dynamic "disk" {
@@ -111,13 +114,17 @@ resource "google_compute_region_instance_template" "main" {
     email  = local.service_account_email
     scopes = ["cloud-platform"]
   }
-  depends_on = [google_cloudfunctions2_function.init_instance]
   lifecycle {
     create_before_destroy = true
     ignore_changes = [
       metadata
     ]
   }
+  depends_on = [
+    google_cloudfunctions2_function.init_instance,
+    time_sleep.wait_after_function_creation,
+    time_sleep.wait_before_function_destruction,
+  ]
 }
 
 # This health check is for autohealing.

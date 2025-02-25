@@ -394,6 +394,8 @@ variable "config_file" {
 variable "special_behavior" {
   type = object({
     disable_secret_manager  = optional(bool, false)
+    function_creation_wait_sec = optional(number, 0)
+    function_destruction_wait_sec = optional(number, 0)
   })
   default = {}
   description = <<-EOF
