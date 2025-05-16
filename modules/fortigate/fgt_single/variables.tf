@@ -39,7 +39,7 @@ variable "password" {
   type        = string
   default     = ""
   sensitive   = true
-  description = "Password. If not set, it will be the instance id."
+  description = "Password. If not set, it will be the instance ID. This variable only works for FortiGate (Not working for FAZ and FMG)."
 }
 
 variable "machine_type" {

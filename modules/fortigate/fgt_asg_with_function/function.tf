@@ -29,9 +29,10 @@ resource "google_pubsub_topic_iam_binding" "pubsub_iam" {
 
 # Bucket
 resource "google_storage_bucket" "gcf_bucket" {
-  name          = local.bucket_name
-  location      = var.region
-  force_destroy = true
+  name                        = local.bucket_name
+  location                    = var.region
+  force_destroy               = true
+  uniform_bucket_level_access = var.bucket.uniform_bucket_level_access # Allow uniform bucket level access
 }
 
 resource "random_string" "bucket_id" {
@@ -91,8 +92,9 @@ resource "google_cloudfunctions2_function" "init_instance" {
   name     = "${local.prefix}function"
   location = var.region
   build_config {
-    runtime     = "python312"
-    entry_point = "entry_point"
+    runtime         = "python312"
+    entry_point     = "entry_point"
+    service_account = var.cloud_function.build_service_account_email != "" ? "projects/${var.project}/serviceAccounts/${var.cloud_function.build_service_account_email}" : null
     source {
       storage_source {
         bucket = google_storage_bucket.gcf_bucket.name
@@ -106,6 +108,8 @@ resource "google_cloudfunctions2_function" "init_instance" {
     available_cpu                    = var.cloud_function.service_config.available_cpu
     available_memory                 = var.cloud_function.service_config.available_memory
     timeout_seconds                  = var.cloud_function.service_config.timeout_seconds
+    ingress_settings                 = var.cloud_function.service_config.ingress_settings
+    vpc_connector_egress_settings    = var.cloud_function.service_config.egress_settings
     service_account_email            = local.service_account_email
     environment_variables = merge({
       PROJECT_PREFIX          = var.prefix
@@ -119,7 +123,10 @@ resource "google_cloudfunctions2_function" "init_instance" {
       BUCKET_NAME             = local.bucket_name
       ELB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.elb_ip])
       ILB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.ilb_ip])
-    }, var.cloud_function.additional_variables)
+    },
+    try(var.fmg_integration.ums, null) != null ? { SKIP_CONFIG = "autoscale" } : {},
+    var.cloud_function.additional_variables
+  )
 
     dynamic "secret_environment_variables" {
       for_each = local.use_fortiflex_passwd ? [1] : []
@@ -139,14 +146,14 @@ resource "google_cloudfunctions2_function" "init_instance" {
         version    = "latest"
       }
     }
-    vpc_connector                 = google_vpc_access_connector.vpc_connector.id
-    vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
+    vpc_connector = google_vpc_access_connector.vpc_connector.id
   }
   event_trigger {
-    trigger_region = var.region
-    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.topic.id
-    retry_policy   = "RETRY_POLICY_DO_NOT_RETRY"
+    trigger_region        = var.region
+    event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic          = google_pubsub_topic.topic.id
+    retry_policy          = "RETRY_POLICY_DO_NOT_RETRY"
+    service_account_email = var.cloud_function.trigger_service_account_email == "" ? null : var.cloud_function.trigger_service_account_email
   }
   depends_on = [
     google_storage_bucket_iam_member.bucket_access,

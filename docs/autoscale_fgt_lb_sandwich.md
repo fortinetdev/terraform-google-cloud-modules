@@ -57,11 +57,15 @@ zones   = ["<YOUR-OWN-VALUE1>",     # e.g., ["us-central1-b", "us-central1-c"]. 
            "<YOUR-OWN-VALUE2>"]     # If zones is empty, GCP will select 3 zones for you.
 
 # IAM variables (Optional)
-# service_account_email = "example@example.com " # The e-mail address of the service account. 
-                                                 # This service account should already have "roles/datastore.user" and "roles/compute.viewer".
-                                                 # If not given, the default Google Compute Engine service account is used.
+# service_account_email = "example@<your-project-name>.iam.gserviceaccount.com"
+# The e-mail address of the service account. This service account will control the cloud function created by this project.
+# This service account should already have "roles/datastore.user", "roles/compute.viewer" and "roles/run.invoker".
+# If this variable is not specified, the default Google Compute Engine service account is used.
 ```
 Modify these variables based on your needs.
+
+`service_account_email` should comply with the least privilege principle.
+You can [create dedicated service account by using our GCP module](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_gcp_modules.md#create-dedicated-service-account).
 
 If you want to deploy more than one examples, please make sure the `prefix` of those examples are different.
 
@@ -159,14 +163,14 @@ cloud_function = {
   # "fortiflex" parameters is required if license_source is "fortiflex" or "file_fortiflex"
   # fortiflex = {
   #   retrieve_mode = "use_active"         # How to retrieve an existing fortiflex license (entitlement)
-  #                                        # "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
-  #                                        # "use_active" selects one active and unused entitlement where the description field is empty.
+  #                                        # "use_active": Retrieves "ACTIVE" or "PENDING" licenses. If the license is released, the license keeps "ACTIVE".
+  #                                        # "use_stopped" (default behavior): Retrieves "STOPPED", "EXPIRED" or "PENDING" licenses, and changes them to "ACTIVE". If the license is released, change the license to "STOPPED".
   #   username      = "<YOUR-OWN-VALUE>"   # The username of your FortiFlex account.
   #   password      = "<YOUR-OWN-VALUE>"   # The password of your FortiFlex account.
   #   config        = <YOUR-OWN-VALUE>     # The config ID of your FortiFlex configuration.
   # }
 
-  # This parameter controls the instance that runs the cloud function.
+  # This parameter controls the instance that runs the cloud function. For simplicity, it is recommended to use the default value.
   service_config = {
     max_instance_count               = 1    # The limit on the maximum number of function instances that may coexist at a given time.
     max_instance_request_concurrency = 3    # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
@@ -176,6 +180,12 @@ cloud_function = {
   }
 
   # additional_variables = {}               # Additional Cloud Function Variables
+
+  # The following parameters are optional, and no need to be specified in most of cases
+  # build_service_account_email = "your-name@example.com" # The email address of the service account used to build the cloud function. This account needs to have role "roles/cloudbuild.builds.builder".
+                                                          # The <PROJECT_NUMBER>@cloudbuild.gserviceaccount.com will be used if it is not specified.
+  # trigger_service_account_email = "your-name@example.com" # The email address of the service account used to trigger the cloud function. This account needs to have role "roles/run.invoker".
+                                                            # The default service account will be used if it is not specified.
 }
 ```
 Cloud Function is used to manage FGT synchronization and inject license into FGT. For more information about the Cloud Function, please check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md).

@@ -40,14 +40,16 @@ module "fortigate_asg" {
   config_script      = local.config_script
   network_tags       = var.network_tags
   cloud_function = {
-    vpc_network         = var.network_interfaces[local.func_port_index].network_name
-    function_ip_range   = var.cloud_function.function_ip_range
-    license_source      = var.cloud_function.license_source
-    license_file_folder = var.cloud_function.license_file_folder
-    autoscale_psksecret = var.cloud_function.autoscale_psksecret
-    logging_level       = var.cloud_function.logging_level
-    fortiflex           = var.cloud_function.fortiflex
-    service_config      = var.cloud_function.service_config
+    vpc_network                   = var.network_interfaces[local.func_port_index].network_name
+    function_ip_range             = var.cloud_function.function_ip_range
+    license_source                = var.cloud_function.license_source
+    license_file_folder           = var.cloud_function.license_file_folder
+    autoscale_psksecret           = var.cloud_function.autoscale_psksecret
+    logging_level                 = var.cloud_function.logging_level
+    fortiflex                     = var.cloud_function.fortiflex
+    service_config                = var.cloud_function.service_config
+    build_service_account_email   = var.cloud_function.build_service_account_email
+    trigger_service_account_email = var.cloud_function.trigger_service_account_email
     additional_variables = merge(var.cloud_function.additional_variables,
       {
         HA_SYNC_INTERFACE    = var.ha_sync_interface
@@ -55,7 +57,9 @@ module "fortigate_asg" {
       }
     )
   }
+  bucket           = var.bucket
   autoscaler       = var.autoscaler
+  fmg_integration  = var.fmg_integration
   special_behavior = var.special_behavior
   depends_on = [
     google_compute_address.ilb_ip

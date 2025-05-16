@@ -22,9 +22,17 @@ Please click the following links for visual diagrams, requirements, example depl
     Utilize Autoscale FortiGate as a central hub to connect up to eight existing VPCs. FortiGates connect your VPCs and manage traffic between VPCs.
 
 ### Modules
-1. [Single FortiGate](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/fgt_single.md):
+1. [generic_vm_standalone](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/module_generic_vm_standalone.md)
+
+    This module can be used to deploy any Fortinet VM: FortiGate / FortiManager / FortiAnalyzer / FortiAIOPS / FortiGuest ...
+
+
+2. [Single FortiGate](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/fgt_single.md)  (Deprecated, please use [generic_vm_standalone](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/module_generic_vm_standalone.md)):
 
     You can use this module to quickly deploy one single FortiGate.
+
+    This module can also be used to create FortiManager and FortiAnalyzer if you change the `image_type` or `image_source` to the [target value](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md#image-list).
+
 
 
 ## How to Use Examples/Modules:
@@ -53,6 +61,7 @@ module "your_module_name" {
 ## FAQ
 - [How to Specify Image](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md)
 - [What is Cloud Function](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md)
+- [Useful GCP Modules](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_gcp_modules.md)
 
 ## Request, Question or Issue
 

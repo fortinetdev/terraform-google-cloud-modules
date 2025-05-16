@@ -1,0 +1,26 @@
+%{ if hostname != "" ~}
+config system global
+    set hostname ${hostname}
+end
+%{ endif ~}
+%{ if password != "" ~}
+%{ if can(regex("fortinet-fmg-|fortinet-faz-|fortinet-fgt", image_source)) ~}
+config system global
+    set pre-login-banner disable
+end
+%{ endif ~}
+%{ if can(regex("fortinet-fmg-|fortinet-faz-", image_source)) ~}
+config system admin user
+%{ else ~}
+config system admin
+%{ endif ~}
+    edit "admin"
+        set password ${password}
+    next
+end
+%{ endif ~}
+${extra_script}
+%{ if fortiflex_token != "" ~}
+execute vm-license ${fortiflex_token}
+execute reboot
+%{ endif ~}

@@ -1,4 +1,28 @@
-## 1.3.0 (2025)
+## 1.4.0 (May, 16, 2025)
+
+FEATURES:
+
+* **New Module**: `module/fortigate/fgt_ha`.
+* **New Module**: `module/fortinet/generic_vm_standalone`.
+
+IMPROVEMENTS:
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Data source `google_compute_default_service_account` will not be retrieved if the variable `service_account_email` is specified.
+  * Added a new optional variable `bucket`. You can set "uniform_bucket_level_access = true" to the resource `google_storage_bucket` to enable uniform bucket-level access.
+  * Added two new variables `cloud_function->service_config->ingress_settings` and `cloud_function->service_config->egress_settings`, to configure the ingress and egress traffic settings of the Cloud Function.
+  * Added a new optional variable `cloud_function->build_service_account_email`. This account is used to build the Cloud Function and should have the role "roles/cloudbuild.builds.builder".
+  * Added a new optional variable `cloud_function->trigger_service_account_email`. This account is used to trigger the Cloud Function and should have the role "roles/run.invoker".
+  * Added a new variable `fmg_integration` to support FortiManager integration.
+* Example `examples/autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+  * Added variable `special_behavior`. Please only use this variable under the suggestion of the developer.
+* Document:
+  * Added new file `/docs/guide_gcp_modules.md`.
+  * Added new file `/docs/module_generic_vm_standalone.md`.
+
+## 1.3.0 (Febuary, 25, 2025)
 
 FEATURES:
 * **New Module**: `modules/gcp/iam`. It helps you create a new service account with specified roles.

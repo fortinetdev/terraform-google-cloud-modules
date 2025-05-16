@@ -35,18 +35,23 @@ module "fortigate_asg" {
   config_script   = local.config_script
   network_tags    = ["external-access", "internal-access"]
   cloud_function = {
-    vpc_network          = module.vpc_external.network.self_link
-    function_ip_range    = var.cloud_function.function_ip_range
-    license_source       = var.cloud_function.license_source
-    license_file_folder  = var.cloud_function.license_file_folder
-    autoscale_psksecret  = var.cloud_function.autoscale_psksecret
-    logging_level        = var.cloud_function.logging_level
-    fortiflex            = var.cloud_function.fortiflex
-    service_config       = var.cloud_function.service_config
-    additional_variables = var.cloud_function.additional_variables
+    vpc_network                   = module.vpc_external.network.self_link
+    function_ip_range             = var.cloud_function.function_ip_range
+    license_source                = var.cloud_function.license_source
+    license_file_folder           = var.cloud_function.license_file_folder
+    autoscale_psksecret           = var.cloud_function.autoscale_psksecret
+    logging_level                 = var.cloud_function.logging_level
+    fortiflex                     = var.cloud_function.fortiflex
+    service_config                = var.cloud_function.service_config
+    build_service_account_email   = var.cloud_function.build_service_account_email
+    trigger_service_account_email = var.cloud_function.trigger_service_account_email
+    additional_variables          = var.cloud_function.additional_variables
   }
-  autoscaler = var.autoscaler
-  depends_on = [module.vpc_external, module.vpc_internal]
+  bucket           = var.bucket
+  autoscaler       = var.autoscaler
+  fmg_integration  = var.fmg_integration
+  special_behavior = var.special_behavior
+  depends_on       = [module.vpc_external, module.vpc_internal]
 }
 
 resource "google_compute_address" "elb_ip" {

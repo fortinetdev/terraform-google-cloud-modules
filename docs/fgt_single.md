@@ -1,5 +1,8 @@
 # Module: Single FortiGate - fgt_single
 
+> This module is used to deploy one single FortiGate.
+To deploy any Forti products (e.g., FortiGate, FortiAnalyzer, FortiManager... ), please use the module: [generic_vm_standalone](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/module_generic_vm_standalone.md).
+
 Create a FortiGate and using existing VPCs.
 
 ## How To Deploy
@@ -8,11 +11,11 @@ You can use this module directly:
 
 ```
 module "single_fortigate" {
-  source = "fortinetdev/cloud-modules/google//modules/fortigate/fgt_single"
+  source = "fortinetdev/cloud-modules/google//modules/fortinet/fgt_single"
 
   prefix   = "single-fortigate"             # The prefix name of all Google Cloud resources created by this module.
   hostname = "single-fortigate"             # The name of your FortiGate. If not set, it will be <prefix>-instance.
-  # password     = "<Your admin password>"  # Optional. If not set, it will be the GCP instance id.
+  # password     = "<Your admin password>"  # Optional. If not set, it will be the GCP instance id. This variable only works for FortiGate (Not working for FortiAnalyzer and FortiManager).
   region       = "us-central1"              # Region to deploy FortiGate.
   zone         = "us-central1-a"            # Zone to deploy FortiGate.
   machine_type = "n1-standard-4"            # The GCP Virtual Machine type to deploy FGT.

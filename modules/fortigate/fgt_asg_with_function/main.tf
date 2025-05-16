@@ -4,12 +4,13 @@ locals {
   autoscale_psksecret   = var.cloud_function.autoscale_psksecret == "" ? random_password.autoscale_psksecret[0].result : var.cloud_function.autoscale_psksecret
   bucket_name           = "${var.prefix}-bucket-${random_string.bucket_id.result}"
   zone_mode             = (var.zone != "" && length(var.zones) == 0) ? "single" : "multiple"
-  iam_member            = var.service_account_email == "" ? data.google_compute_default_service_account.default.member : data.google_service_account.iam[0].member
-  service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default.email : var.service_account_email
+  iam_member            = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].member : data.google_service_account.iam[0].member
+  service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].email : var.service_account_email
   use_fgt_passwd        = !var.special_behavior.disable_secret_manager
   use_fortiflex_passwd  = !var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != ""
   image_source          = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
   image_source_hash     = substr(sha1(local.image_source), 0, 8)
+  license_type          = can(regex("fortinet-fgtondemand-", local.image_source)) ? "PAYG" : "BYOL"
 }
 
 resource "random_password" "fgt_password" {
@@ -26,6 +27,7 @@ resource "random_password" "autoscale_psksecret" {
 
 # IAM
 data "google_compute_default_service_account" "default" {
+  count = var.service_account_email != "" ? 0 : 1
 }
 
 data "google_service_account" "iam" {
@@ -105,8 +107,10 @@ resource "google_compute_region_instance_template" "main" {
 
   metadata = {
     user-data = templatefile("${path.module}/bootstrap.conf", {
-      hostname      = var.hostname
-      config_script = var.config_script
+      hostname        = var.hostname
+      config_script   = var.config_script
+      fmg_integration = var.fmg_integration
+      license_type    = local.license_type
     })
   }
 

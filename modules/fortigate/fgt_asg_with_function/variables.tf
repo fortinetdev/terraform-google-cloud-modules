@@ -24,7 +24,7 @@ variable "zone" {
   Deploy the project to this single zone.
   Variable zone is mutually exclusive with variable zones.
   If both zone and zones are specified, zones will be used.
-  If neither is specified, GCP will select 3 zones for you.
+  If both are unspecified, GCP will select 3 zones for you.
   EOF
   default     = ""
 }
@@ -35,7 +35,7 @@ variable "zones" {
   Deploy the project to multiple zones for higher availability.
   Variable zones is mutually exclusive with variable zone.
   If both zone and zones are specified, zones will be used.
-  If neither is specified, GCP will select 3 zones for you.
+  If both are unspecified, GCP will select 3 zones for you.
   EOF  
   default     = []
 }
@@ -45,9 +45,10 @@ variable "service_account_email" {
   type        = string
   default     = ""
   description = <<-EOF
-  The e-mail address of the service account used for VMs and secrets management. Example value: 1234567-compute@developer.gserviceaccount.com
+  Example value: 1234567-compute@developer.gserviceaccount.com
+  The e-mail address of the service account. This service account will control the cloud function created by this project.
   This service account should already have "roles/datastore.user" and "roles/compute.viewer".
-  If not given, the default Google Compute Engine service account is used.
+  If this variable is not specified, the default Google Compute Engine service account is used.
   EOF 
 }
 
@@ -92,7 +93,7 @@ variable "machine_type" {
 
 variable "image_type" {
   type        = string
-  default     = "fortigate-76-byol"
+  default     = ""
   description = <<-EOF
   The type of public FortiGate Image. Example: "fortigate-76-byol" or "fortigate-76-payg"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" will be used.
@@ -215,8 +216,12 @@ variable "cloud_function" {
       available_cpu                    = optional(string, "1")
       available_memory                 = optional(string, "1G")
       timeout_seconds                  = optional(number, 240)
+      ingress_settings                 = optional(string, "ALLOW_ALL")
+      egress_settings                  = optional(string, "PRIVATE_RANGES_ONLY")
     }), {})
-    additional_variables = optional(map(string), {})
+    build_service_account_email   = optional(string, "")
+    trigger_service_account_email = optional(string, "")
+    additional_variables          = optional(map(string), {})
   })
   description = <<-EOF
     Parameters for cloud function. The cloud function is used to inject licenses to FGTs,
@@ -237,8 +242,8 @@ variable "cloud_function" {
         - logging_level : (Optional | string | default:"NONE") Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
         - fortiflex : (Optional | object) You need to specify this parameter if your license_source is "fortiflex" or "file_fortiflex".
             - retrieve_mode : (Optional | string | default:"use_stopped") How to retrieve an existing fortiflex license (entitlement):
-                "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
-                "use_active" selects one active and unused entitlement where the description field is empty.
+                "use_stopped" Retrieves "STOPPED", "EXPIRED" or "PENDING" licenses, and changes them to "ACTIVE". If the license is released, change the license to "STOPPED".
+                "use_active" Retrieves "ACTIVE" or "PENDING" licenses. If the license is released, the license keeps "ACTIVE".
             - username : (Reuqired if license_source is "fortiflex" or "file_fortiflex" | string | default:"") The username of your FortiFlex account.
             - password : (Reuqired if license_source is "fortiflex" or "file_fortiflex" | string | default:"") The password of your FortiFlex account.
             - config : (Reuqired if license_source is "fortiflex" or "file_fortiflex" | string | default:"") The configuration ID of your FortiFlex configuration (product type should be FortiGate-VM).
@@ -248,6 +253,12 @@ variable "cloud_function" {
             - available_cpu : (Optional | string | default:"1") The number of CPUs used in a single container instance.
             - available_memory : (Optional | string | default:"1G") The amount of memory available for a function. Supported units are k, M, G, Mi, Gi. If no unit is supplied the value is interpreted as bytes.
             - timeout_seconds : (Optional | number | default:240) The function execution timeout. Execution is considered failed and can be terminated if the function is not completed at the end of the timeout period.
+            - ingress_settings: (Optional | string | default:"ALLOW_ALL") The cloud function accepts what type of ingress traffic. Possible values are: ALLOW_ALL, ALLOW_INTERNAL_ONLY, ALLOW_INTERNAL_AND_GCLB.
+            - egress_settings: (Optional | string | default:"PRIVATE_RANGES_ONLY") What type of egress traffic will be sent to the VPC connector. Possible values are: VPC_CONNECTOR_EGRESS_SETTINGS_UNSPECIFIED, PRIVATE_RANGES_ONLY, ALL_TRAFFIC.
+        - build_service_account_email: (Optional | string | default:"") The email address of the service account used to build the cloud function. This account needs to have role "roles/cloudbuild.builds.builder".
+            The <PROJECT_NUMBER>@cloudbuild.gserviceaccount.com will be used if it is not specified.
+        - trigger_service_account_email: (Optional | string | default:"") The email address of the service account used to trigger the cloud function. This account needs to have role "roles/run.invoker".
+            The default service account will be used if it is not specified.
         - additional_variables : (Optional | map | default: {}) Additional variables used in cloud function. It is used to specify example-specific variables
 
     Example:
@@ -275,13 +286,36 @@ variable "cloud_function" {
   EOF
 }
 
+# Bucket
+variable "bucket" {
+  type = object({
+    uniform_bucket_level_access = optional(bool, false)
+  })
+  default     = {}
+  description = <<-EOF
+    The bucket used to store license files and cloud function source code.
+    The bucket name is generated by the module.
+
+    Options:
+
+        - uniform_bucket_level_access : (Optional | bool | default:false) Whether to enable uniform bucket-level access for the bucket.
+
+    Example:
+    ```
+    bucket = {
+      uniform_bucket_level_access = true
+    }
+    ```
+    EOF
+}
+
 # AutoScaler
 variable "autoscaler" {
   type = object({
-    max_instances        = number
-    min_instances        = optional(number, 2)
-    cooldown_period      = optional(number, 300)
-    cpu_utilization      = optional(number, 0.9)
+    max_instances   = number
+    min_instances   = optional(number, 2)
+    cooldown_period = optional(number, 300)
+    cpu_utilization = optional(number, 0.9)
     autohealing = optional(object({
       health_check_port   = optional(number, 8008)
       timeout_sec         = optional(number, 5)
@@ -325,13 +359,43 @@ variable "config_script" {
   description = "Extra config data"
 }
 
+variable "fmg_integration" {
+  type = object({
+    ip           = string
+    sn           = string
+    ums = optional(object({
+      autoscale_psksecret = string
+      fmg_reg_password    = string
+      hb_interval         = optional(number, 30)
+      sync_interface      = optional(string, "port1")
+      api_key             = optional(string, "")
+    }))
+  })
+  default = null
+  description = <<-EOF
+  Register FortiGate instance to the FortiManager.
+
+  Options:
+
+    - ip : (Required | string) FortiManager public IP.
+    - sn : (Required | string) FortiManager serial number.
+    - ums: (Optional | map) Configurations for UMS mode.
+      Options for ums:
+      - autoscale_psksecret : (Required | string) Password that will used on the auto-scale sync-up.
+      - fmg_reg_password : (Required | string) FortiManager Pre-Shared Key for device registration.
+      - hb_interval : (Optional | number | default:30) Time between sending heartbeat packets. Increase to reduce false positives. Default: 10.
+      - sync_interface : (Optional | string | default:"port1") The interface used to sync with FortiManager. Default: "port1".
+      - api_key : (Optional | string | default:"") FortiManager API key that used and required when license_type is 'byol'.
+  EOF
+}
+
 variable "special_behavior" {
   type = object({
-    disable_secret_manager  = optional(bool, false)
-    function_creation_wait_sec = optional(number, 0)
+    disable_secret_manager        = optional(bool, false)
+    function_creation_wait_sec    = optional(number, 0)
     function_destruction_wait_sec = optional(number, 0)
   })
-  default = {}
+  default     = {}
   description = <<-EOF
     This variable can specify special behavior to suit various needs.
     Do not use this variable unless instructed by the author.

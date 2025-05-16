@@ -3,22 +3,29 @@ locals {
   hostname           = var.hostname != "" ? var.hostname : "${local.prefix}instance"
   config_file_script = var.config_file != "" ? file(var.config_file) : ""
   config_script      = var.config_script != "" ? "${var.config_script}\n${local.config_file_script}" : local.config_file_script
-  image_source       = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
+  image_lookup       = jsondecode(file("${path.module}/image_lookup.json"))
+  image_lookup_query = var.image.product == "fortigate" ? "fortigate-${var.image.lic}-${var.image.arch}" : var.image.product
+  image_source = (var.image.source != "" ? var.image.source :
+    var.image.family != "" ? data.google_compute_image.fgt_image[0].self_link :
+    try(
+      local.image_lookup[local.image_lookup_query][var.image.version],
+      ""
+    )
+  )
 }
 
-# gcloud compute images list --project fortigcp-project-001
 data "google_compute_image" "fgt_image" {
-  count   = var.image_type != "" ? 1 : 0
+  count   = var.image.family != "" ? 1 : 0
   project = "fortigcp-project-001"
-  family  = var.image_type
+  family  = var.image.family
 }
 
 # Additional disks
 resource "google_compute_disk" "disk" {
-  count = var.additional_disk.size != 0 ? 1 : 0
-  name  = var.additional_disk.name != "" ? var.additional_disk.name : "${local.prefix}logdisk"
-  size  = var.additional_disk.size
-  type  = var.additional_disk.type
+  count = length(var.disks)
+  name  = var.disks[count.index].name != "" ? var.disks[count.index].name : "${local.prefix}disk-${count.index}"
+  size  = var.disks[count.index].size
+  type  = var.disks[count.index].type
   zone  = var.zone
 }
 
@@ -27,16 +34,6 @@ data "google_compute_subnetwork" "subnet_resources" {
   count  = length(var.network_interfaces)
   name   = var.network_interfaces[count.index].subnet_name
   region = var.region
-}
-
-# Reserve IP
-resource "google_compute_address" "private_ips" {
-  count        = length(var.network_interfaces)
-  name         = "${local.prefix}${var.network_interfaces[count.index].subnet_name}"
-  region       = var.region
-  address_type = "INTERNAL"
-  address      = var.network_interfaces[count.index].private_ip != "" ? var.network_interfaces[count.index].private_ip : null
-  subnetwork   = data.google_compute_subnetwork.subnet_resources[count.index].self_link
 }
 
 # VM
@@ -55,9 +52,9 @@ resource "google_compute_instance" "main" {
   }
 
   dynamic "attached_disk" {
-    for_each = google_compute_disk.disk.*.self_link
+    for_each = google_compute_disk.disk
     content {
-      source = attached_disk.value
+      source = attached_disk.value.self_link
     }
   }
 
@@ -65,25 +62,26 @@ resource "google_compute_instance" "main" {
     for_each = var.network_interfaces
     content {
       subnetwork = data.google_compute_subnetwork.subnet_resources[network_interface.key].self_link
-      network_ip = google_compute_address.private_ips[network_interface.key].address
+      network_ip = network_interface.value.private_ip != "" ? network_interface.value.private_ip : null
 
       dynamic "access_config" {
-        for_each = var.network_interfaces[network_interface.key].has_public_ip ? [1] : (var.network_interfaces[network_interface.key].public_ip != "" ? [1] : [])
+        for_each = network_interface.value.has_public_ip ? [1] : (network_interface.value.public_ip != "" ? [1] : [])
         content {
-          nat_ip = var.network_interfaces[network_interface.key].public_ip != "" ? var.network_interfaces[network_interface.key].public_ip : null
+          nat_ip = network_interface.value.public_ip != "" ? network_interface.value.public_ip : null
         }
       }
     }
   }
 
   metadata = {
-    user-data = templatefile("${path.module}/bootstrap.conf", {
+    user-data = templatefile("${path.module}/bootstrap.tftpl", {
       hostname        = local.hostname
       password        = var.password
-      fortiflex_token = var.licensing.fortiflex_token
+      fortiflex_token = var.license.fortiflex_token
       extra_script    = local.config_script
+      image_source    = local.image_source
     })
-    license = var.licensing.license_file != "" ? file("${var.licensing.license_file}") : null
+    license = var.license.license_file != "" ? file("${var.license.license_file}") : null
   }
 
   service_account {

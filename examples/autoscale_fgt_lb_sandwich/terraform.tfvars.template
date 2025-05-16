@@ -7,9 +7,9 @@ zones   = ["<YOUR-OWN-VALUE-1>",    # e.g., ["us-central1-b", "us-central1-c"]. 
            "<YOUR-OWN-VALUE-2>"]    # Variable "zone" is mutually exclusive with variable "zones". If neither is specified, GCP will select 3 zones for you.
 
 # IAM variables (Optional)
-# service_account_email = "example@example.com " # The e-mail address of the service account. 
+# service_account_email = "example@example.com " # The e-mail address of the service account. This service account will control the cloud function created by this project.
                                                  # This service account should already have "roles/datastore.user" and "roles/compute.viewer".
-                                                 # If not given, the default Google Compute Engine service account is used.
+                                                 # If this variable is not specified, the default Google Compute Engine service account is used.
 
 # FortiGate variables
 fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
@@ -63,17 +63,18 @@ cloud_function = {
   license_file_folder = "./licenses"       # The folder where all ".lic" license files are located.
   autoscale_psksecret = "<RANDOM-STRING>"  # The secret key used to synchronize information between FortiGates. If not set, the module will randomly generate a 16-character secret key.
   logging_level       = "INFO"             # Verbosity of logs. Possible values include "NONE", "ERROR", "WARN", "INFO", "DEBUG", and "TRACE". You can find logs in Google Cloud Logs Explorer.
+
   # Specify fortiflex parameters if license_source is "fortiflex" or "file_fortiflex"
   # fortiflex = {
   #   retrieve_mode = "use_active"           # How to retrieve an existing fortiflex license (entitlement)
-  #                                          # "use_stopped" selects and reactivates a stopped entitlement where the description field is empty;
-  #                                          # "use_active" selects one active and unused entitlement where the description field is empty.
+  #                                          # "use_active": Retrieves "ACTIVE" or "PENDING" licenses. If the license is released, the license keeps "ACTIVE".
+  #                                          # "use_stopped" (default behavior): Retrieves "STOPPED", "EXPIRED" or "PENDING" licenses, and changes them to "ACTIVE". If the license is released, change the license to "STOPPED".
   #   username      = "<YOUR-OWN-VALUE>"     # The username of your FortiFlex account.
   #   password      = "<YOUR-OWN-VALUE>"     # The password of your FortiFlex account.
   #   config        = <YOUR-OWN-VALUE>       # The config ID of your FortiFlex configuration.
   # }
 
-  # This parameter controls the instance that runs the cloud function.
+  # This parameter controls the instance that runs the cloud function. For simplicity, it is recommended to use the default value.
   service_config = {
     max_instance_count               = 1    # The limit on the maximum number of function instances that may coexist at a given time.
     max_instance_request_concurrency = 3    # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
@@ -81,6 +82,12 @@ cloud_function = {
     available_memory                 = "1G" # The amount of memory available for a function.
     timeout_seconds                  = 420  # The function execution timeout.
   }
+
+  # The following parameters are optional, and no need to be specified in most of cases
+  # build_service_account_email = "your-name@example.com" # The email address of the service account used to build the cloud function. This account needs to have role "roles/cloudbuild.builds.builder".
+                                                          # The <PROJECT_NUMBER>@cloudbuild.gserviceaccount.com will be used if it is not specified.
+  # trigger_service_account_email = "your-name@example.com" # The email address of the service account used to trigger the cloud function. This account needs to have role "roles/run.invoker".
+                                                            # The default service account will be used if it is not specified.
 }
 
 # Autoscaler (When to autoscale and the maximum number of FortiGate instances.)
@@ -155,3 +162,16 @@ EOF
 # In addition to the variable config_script, you can also save the configuration script as a file and upload the script using the variable config_file.
 # If you specify both config_script and config_file, this terraform project will upload both of them.
 # config_file = "<YOUR-OWN-VALUE>"  # e.g., your_config_file.conf
+
+# Others
+# # FortiManager integration
+# fmg_integration = {
+#   ip = "<Your FMG IP>"             # The public IP address of the FortiManager.
+#   sn = "<Your FMG Serial Number>"  # The serial number of the FortiManager.
+#   ums = {
+#     autoscale_psksecret = "<RANDOM-STRING>"  # The secret key used to synchronize information between FortiGates.
+#     fmg_reg_password    = "fmg_reg_passwd>"  # The password used to register the FortiGate to the FortiManager.
+#     sync_interface      = "port1"            # The interface used to synchronize information between FortiGates.
+#     api_key             = ""                 # The API key used to register the FortiGate to the FortiManager. Only used when license type is BYOL.
+#   }
+# }
