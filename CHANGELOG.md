@@ -1,3 +1,24 @@
+## 1.4.1 (June, 11, 2025)
+
+IMPROVEMENTS:
+
+* Module `modules/fortinet/generic_vm_standalone`:
+  * Added the latest versions for every Fortinet product.
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Supported health check in UMS mode.
+  * Modified default value and description of `cloud_function->service_config->max_instance_request_concurrency`.
+  * Improved concurrency logic.
+  * The cloud function can read the value of `autohealing->health_check_port` and change the probe port of FGT to this value.
+  * "HEALTHCHECK_PORT" configuration will only be uploaded to the primary FGT. The secondary FGTs could only get this information by syncing with the primary FGT.
+* Example `autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+  * The resource `google_compute_region_health_check` will not be created if no LB is created by this example.
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Document:
+  * Added new file `/docs/guide_upgrade_fgt_asg.md`.
+
+
 ## 1.4.0 (May, 16, 2025)
 
 FEATURES:

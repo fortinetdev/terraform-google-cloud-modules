@@ -197,7 +197,8 @@ cloud_function = {
   # This parameter controls the instance that runs the cloud function. For simplicity, it is recommended to use the default value.
   service_config = {
     max_instance_count               = 1    # The limit on the maximum number of function instances that may coexist at a given time.
-    max_instance_request_concurrency = 3    # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
+    max_instance_request_concurrency = 10   # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
+                                            # Recommended to set it to no less than the maximum number of FGT instances (variable "autoscaler.max_instances").
     available_cpu                    = "1"  # The number of CPUs used in a single container instance.
     available_memory                 = "1G" # The amount of memory available for a function.
     timeout_seconds                  = 420  # The function execution timeout.
@@ -254,7 +255,7 @@ The cloud function will retrieve your existing unused FortiFlex entitlements and
 You need to provide your FortiFlex `username` and `password`.
 You also need to provide a FortiGate configuration `config` (A digital number). You can use our fortiflexvm Terraform to [create a FortiGate configuration](https://registry.terraform.io/providers/fortinetdev/fortiflexvm/latest/docs/resources/fortiflexvm_config) and get its config ID. You need to [use this config ID to create entitlements](https://registry.terraform.io/providers/fortinetdev/fortiflexvm/latest/docs/resources/fortiflexvm_entitlements_vm) in advance.
 
-`service_config` is a variable that controls the instance on which the cloud function runs. You can increase `max_instance_request_concurrency` to allow multiple injection license requests to run simultaneously. You need to increase `available_memory` if your `max_instance_request_concurrency` is high and running out of existing memory.
+`service_config` is a variable that controls the instance on which the cloud function runs. You can increase `max_instance_request_concurrency` to allow multiple cloud function requests to run simultaneously. You need to increase `available_memory` if your `max_instance_request_concurrency` is high and running out of existing memory.
 
 `additional_variables` specifies additional variables used by Cloud Function. Some variables are too trivial or **not recommended to be changed**. You can specify them here to overwrite the behavior of the Cloud Function for more customization.
 

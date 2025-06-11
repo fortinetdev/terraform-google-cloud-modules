@@ -263,7 +263,7 @@ variable "cloud_function" {
     }), {})
     service_config = optional(object({
       max_instance_count               = optional(number, 1)
-      max_instance_request_concurrency = optional(number, 2)
+      max_instance_request_concurrency = optional(number, 10)
       available_cpu                    = optional(string, "1")
       available_memory                 = optional(string, "1G")
       timeout_seconds                  = optional(number, 240)
@@ -305,7 +305,7 @@ variable "cloud_function" {
             - config : (Reuqired if license_source is "fortiflex" or "file_fortiflex" | string | default:"") The configuration ID of your FortiFlex configuration (product type should be FortiGate-VM).
         - service_config : (Optional | object) This parameter controls the instance that runs the cloud function. For simplicity, it is recommended to use the default value.
             - max_instance_count : (Optional | number | default:1) The limit on the maximum number of function instances that may coexist at a given time.
-            - max_instance_request_concurrency : (Optional | number | default:2) Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
+            - max_instance_request_concurrency : (Optional | number | default:10) Sets the maximum number of concurrent requests that one cloud function can handle at the same time. Recommended to set it to no less than the maximum number of FGT instances (variable "autoscaler.max_instances").
             - available_cpu : (Optional | string | default:"1") The number of CPUs used in a single container instance.
             - available_memory : (Optional | string | default:"1G") The amount of memory available for a function. Supported units are k, M, G, Mi, Gi. If no unit is supplied the value is interpreted as bytes.
             - timeout_seconds : (Optional | number | default:240) The function execution timeout. Execution is considered failed and can be terminated if the function is not completed at the end of the timeout period.
@@ -334,7 +334,7 @@ variable "cloud_function" {
       # }
       # Parameters of google cloud function.
       service_config = {
-        max_instance_request_concurrency = 2
+        max_instance_request_concurrency = 10
         timeout_seconds                  = 360
       }
     }

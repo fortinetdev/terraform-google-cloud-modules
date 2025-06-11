@@ -54,6 +54,7 @@ module "fortigate_asg" {
       {
         HA_SYNC_INTERFACE    = var.ha_sync_interface
         CLOUD_FUNC_INTERFACE = var.cloud_function.cloud_func_interface
+        HEALTHCHECK_PORT     = var.autoscaler.autohealing.health_check_port
       }
     )
   }
@@ -68,6 +69,7 @@ module "fortigate_asg" {
 
 # This health check is for load balancer.
 resource "google_compute_region_health_check" "hc" {
+  count              = length(local.interfaces_need_lb) > 0 ? 1 : 0
   name               = "${local.prefix}lb-hc"
   region             = var.region
   timeout_sec        = 5
@@ -100,7 +102,7 @@ module "internal_lb" {
   }
   health_check = {
     use_existing_health_check = true
-    existing_self_link        = google_compute_region_health_check.hc.self_link
+    existing_self_link        = google_compute_region_health_check.hc[0].self_link
   }
   backends_list = [module.fortigate_asg.instance_group_id]
   use_all_ports = true

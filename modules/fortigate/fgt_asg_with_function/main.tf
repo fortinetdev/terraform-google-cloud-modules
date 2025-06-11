@@ -11,6 +11,14 @@ locals {
   image_source          = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
   image_source_hash     = substr(sha1(local.image_source), 0, 8)
   license_type          = can(regex("fortinet-fgtondemand-", local.image_source)) ? "PAYG" : "BYOL"
+  cloud_function_hash   = substr(filesha256("${path.module}/cloud_function.zip"), 0, 8)
+  subnets_info = {
+    for idx in range(length(var.network_interfaces)) :
+    "port${idx + 1}" => {
+      gateway_address = data.google_compute_subnetwork.subnet_resources[idx].gateway_address
+      ip_cidr_range   = data.google_compute_subnetwork.subnet_resources[idx].ip_cidr_range
+    }
+  }
 }
 
 resource "random_password" "fgt_password" {
@@ -107,10 +115,13 @@ resource "google_compute_region_instance_template" "main" {
 
   metadata = {
     user-data = templatefile("${path.module}/bootstrap.conf", {
-      hostname        = var.hostname
-      config_script   = var.config_script
-      fmg_integration = var.fmg_integration
-      license_type    = local.license_type
+      hostname          = var.hostname
+      config_script     = var.config_script
+      fmg_integration   = var.fmg_integration
+      license_type      = local.license_type
+      interfaces        = var.network_interfaces
+      health_check_port = var.autoscaler.autohealing.health_check_port
+      subnets_info      = local.subnets_info
     })
   }
 

@@ -93,7 +93,8 @@ cloud_function = {
   # This parameter controls the instance that runs the cloud function. For simplicity, it is recommended to use the default value.
   service_config = {
     max_instance_count               = 1    # The limit on the maximum number of function instances that may coexist at a given time.
-    max_instance_request_concurrency = 3    # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
+    max_instance_request_concurrency = 10   # Sets the maximum number of concurrent requests that one cloud function can handle at the same time.
+                                            # Recommended to set it to no less than the maximum number of FGT instances (variable "autoscaler.max_instances").
     available_cpu                    = "1"  # The number of CPUs used in a single container instance.
     available_memory                 = "1G" # The amount of memory available for a function.
     timeout_seconds                  = 420  # The function execution timeout.

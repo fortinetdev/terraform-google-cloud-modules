@@ -45,7 +45,11 @@ module "fortigate_asg" {
     service_config                = var.cloud_function.service_config
     build_service_account_email   = var.cloud_function.build_service_account_email
     trigger_service_account_email = var.cloud_function.trigger_service_account_email
-    additional_variables          = var.cloud_function.additional_variables
+    additional_variables = merge(var.cloud_function.additional_variables,
+      {
+        HEALTHCHECK_PORT = var.autoscaler.autohealing.health_check_port != 0 ? var.autoscaler.autohealing.health_check_port : var.load_balancer.health_check_port
+      }
+    )
   }
   bucket           = var.bucket
   autoscaler       = var.autoscaler

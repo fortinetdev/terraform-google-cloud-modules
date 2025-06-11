@@ -51,7 +51,7 @@ resource "google_storage_bucket_object" "license_files" {
 }
 
 resource "google_storage_bucket_object" "function_zip" {
-  name   = "function.zip"
+  name   = "function-${local.cloud_function_hash}.zip"
   bucket = google_storage_bucket.gcf_bucket.name
   source = "${path.module}/cloud_function.zip"
 }
@@ -123,10 +123,11 @@ resource "google_cloudfunctions2_function" "init_instance" {
       BUCKET_NAME             = local.bucket_name
       ELB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.elb_ip])
       ILB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.ilb_ip])
-    },
-    try(var.fmg_integration.ums, null) != null ? { SKIP_CONFIG = "autoscale" } : {},
-    var.cloud_function.additional_variables
-  )
+      HEALTHCHECK_PORT        = var.autoscaler.autohealing.health_check_port
+      },
+      try(var.fmg_integration.ums, null) != null ? { SKIP_CONFIG = "all" } : {},
+      var.cloud_function.additional_variables # key-value in this variable can override the previous ones
+    )
 
     dynamic "secret_environment_variables" {
       for_each = local.use_fortiflex_passwd ? [1] : []
@@ -165,10 +166,10 @@ resource "google_cloudfunctions2_function" "init_instance" {
     google_storage_bucket_object.license_files,
   ]
   lifecycle {
+    create_before_destroy = false
     ignore_changes = [
       service_config[0].environment_variables["LOG_EXECUTION_ID"]
     ]
-    replace_triggered_by = [google_storage_bucket_object.function_zip.detect_md5hash]
   }
 }
 
