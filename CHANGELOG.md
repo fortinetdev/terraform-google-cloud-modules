@@ -1,3 +1,19 @@
+## 1.4.2 (September, 16, 2025)
+
+IMPROVEMENTS:
+
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Change the default value of `autoscaler.cooldown_period` to 600;
+  * Improved FAZ interaction logic;
+  * Support API changes in FGT 7.6.4;
+* Module `modules/fortinet/generic_vm_standalone`:
+  * Added the latest versions for every Fortinet product;
+* Example `examples/autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+
+
 ## 1.4.1 (June, 11, 2025)
 
 IMPROVEMENTS:
@@ -10,7 +26,7 @@ IMPROVEMENTS:
   * Improved concurrency logic.
   * The cloud function can read the value of `autohealing->health_check_port` and change the probe port of FGT to this value.
   * "HEALTHCHECK_PORT" configuration will only be uploaded to the primary FGT. The secondary FGTs could only get this information by syncing with the primary FGT.
-* Example `autoscale_fgt_as_hub`:
+* Example `examples/autoscale_fgt_as_hub`:
   * Supported everything changed in Module `fgt_asg_with_function`.
   * The resource `google_compute_region_health_check` will not be created if no LB is created by this example.
 * Example `examples/autoscale_fgt_lb_sandwich`:

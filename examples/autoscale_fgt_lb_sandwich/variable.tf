@@ -359,7 +359,7 @@ variable "autoscaler" {
   type = object({
     max_instances   = number
     min_instances   = optional(number, 2)
-    cooldown_period = optional(number, 300)
+    cooldown_period = optional(number, 600)
     cpu_utilization = optional(number, 0.9)
     autohealing = optional(object({
       health_check_port   = optional(number, 8008)
@@ -376,7 +376,7 @@ variable "autoscaler" {
 
         - max_instances    : (Required | number) The maximum number of FGT instances.
         - min_instances    : (Optional | number | default:2) The minimum number of FGT instances.
-        - cooldown_period  : (Optional | number | default:300) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
+        - cooldown_period  : (Optional | number | default:600) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
         - cpu_utilization  : (Optional | number | default:0.9) Autoscaling signal. If cpu utilization above this value, google cloud will create new FGT instance.
         - autohealing      : (Optional | Object) Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
             - health_check_port   : (Optional | number | default:8008) The port used for health checks by autohealing. Set it to 0 to disable autohealing.
@@ -391,7 +391,7 @@ variable "autoscaler" {
     autoscaler = {
         max_instances   = 10
         min_instances   = 2
-        cooldown_period = 300
+        cooldown_period = 600
         cpu_utilization = 0.9
         scale_in_control_sec = 300
     }

@@ -4,13 +4,15 @@ After deploying the examples `autoscale_fgt_as_hub`, `autoscale_fgt_lb_sandwich`
 
 ### Upgrading the FortiGate Image Version
 
+Once the project is deployed, you may modify the FortiGate image version. This change will affect only newly provisioned FortiGate instances. Existing instances will retain their current version.
+
 The upgrade process depends on how the FGT image is specified in your Terraform configuration:
 
 - Using `image_type`:
 
     If you specify the image via the variable `image_type`, Terraform will automatically retrieve the latest available image. Simply run the command `terraform apply` and confirm the changes.
 
-- Using `image_type`:
+- Using `image_source`:
 
     If the FGT image is set via the variable `image_source`, update this variable with the new image reference. Then, run the command `terraform apply` and confirm the changes.
 

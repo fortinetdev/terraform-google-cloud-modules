@@ -7,7 +7,7 @@ zones   = ["<YOUR-OWN-VALUE-1>",    # e.g., ["us-central1-b", "us-central1-c"]. 
            "<YOUR-OWN-VALUE-2>"]    # Variable "zone" is mutually exclusive with variable "zones". If neither is specified, GCP will select 3 zones for you.
 
 # IAM variables (Optional)
-# service_account_email = "example@example.com " # The e-mail address of the service account. This service account will control the cloud function created by this project.
+# service_account_email = "example@example.com"  # The e-mail address of the service account. This service account will control the cloud function created by this project.
                                                  # This service account should already have "roles/datastore.user" and "roles/compute.viewer".
                                                  # If this variable is not specified, the default Google Compute Engine service account is used.
 
@@ -95,7 +95,7 @@ cloud_function = {
 autoscaler = {
   max_instances     = 4     # The maximum number of FGT instances
   min_instances     = 2     # The minimum number of FGT instances
-  cooldown_period   = 360   # Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
+  cooldown_period   = 600   # Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
   cpu_utilization   = 0.8   # Autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances.
   autohealing = {              # Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
     health_check_port = 8008   # The port used for health checks by autohealing. Set it to 0 to disable autohealing. Otherwise, it should be the same as the variable "load_balancer.health_check_port" to avoid unexpected behavior.
