@@ -1,11 +1,28 @@
+## 1.4.4 (Unreleased)
+
+## 1.4.3 (February, 4, 2026)
+
+IMPROVEMENTS:
+
+* Module `modules/fortinet/generic_vm_standalone`:
+  * Added the latest versions for every Fortinet product;
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Improved the primary FGT selection function by invoking it recursively to avoid a single long-running call causing a timeout;
+  * Supported user managed scaling (UMS).
+* Example `examples/autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Expanded the "hashicorp/google" version constraint from ">= 5.0, <7.0" to ">= 5.0, <8.0" for all modules and examples.
+
 ## 1.4.2 (September, 16, 2025)
 
 IMPROVEMENTS:
 
 * Module `modules/fortigate/fgt_asg_with_function`:
-  * Change the default value of `autoscaler.cooldown_period` to 600;
+  * Changed the default value of `autoscaler.cooldown_period` to 600;
   * Improved FAZ interaction logic;
-  * Support API changes in FGT 7.6.4;
+  * Supported API changes in FGT 7.6.4;
 * Module `modules/fortinet/generic_vm_standalone`:
   * Added the latest versions for every Fortinet product;
 * Example `examples/autoscale_fgt_as_hub`:

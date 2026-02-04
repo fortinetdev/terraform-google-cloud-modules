@@ -78,7 +78,7 @@ end
 }
 ```
 
-## Create a New VPC and Subenet
+## Create a New VPC and Subnet
 
 This `fgt_single` module assumes that you already have existing VPCs and subnets. It only requires the subnet names.
 

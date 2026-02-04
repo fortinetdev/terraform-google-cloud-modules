@@ -46,7 +46,7 @@ cloud_function = {
   # <other parameters...>
   service_config = {
     max_instance_count               = 1    # Maximum number of concurrent function instances.
-    max_instance_request_concurrency = 3    # Maximum concurrent requests handled per instance.
+    max_instance_request_concurrency = 10   # Maximum concurrent requests handled per instance.
     available_cpu                    = "1"  # The number of CPUs used in a single container instance.
     available_memory                 = "1G" # The amount of memory available for a function.
     timeout_seconds                  = 420  # The function execution timeout.
