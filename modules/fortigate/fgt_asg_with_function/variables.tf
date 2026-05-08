@@ -223,14 +223,17 @@ variable "cloud_function" {
     trigger_service_account_email = optional(string, "")
     additional_variables          = optional(map(string), {})
   })
+  default     = null
   description = <<-EOF
     Parameters for cloud function. The cloud function is used to inject licenses to FGTs,
     upload user-specified configurations and manage the FGT autoscale group.
+    This variable is required unless `fmg_integration.ums` is specified.
+    If `fmg_integration.ums` is specified, all parameters under this variable are ignored.
 
     Options:
 
-        - vpc_network : (Required | string) Name of the internal VPC network the cloud function connects to. Cloud function must connect to the internal VPC to send data to FGTs.
-        - function_ip_range : (Required | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
+        - vpc_network : (Required unless fmg_integration.ums is specified | string) Name of the internal VPC network the cloud function connects to. Cloud function must connect to the internal VPC to send data to FGTs.
+        - function_ip_range : (Required unless fmg_integration.ums is specified | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
           This IP range subnet cannot be used by other resources, such as VMs, Private Service Connect, or load balancers.
         - license_source : (Optional | string | default:"none") The source of license if your image_type is "byol".
             "none" : Don't inject licenses to FGTs.
@@ -284,6 +287,10 @@ variable "cloud_function" {
     }
     ```
   EOF
+  validation {
+    condition     = var.cloud_function != null || try(var.fmg_integration.ums, null) != null
+    error_message = "The cloud_function variable must be specified when fmg_integration.ums is not specified."
+  }
 }
 
 # Bucket
@@ -361,8 +368,8 @@ variable "config_script" {
 
 variable "fmg_integration" {
   type = object({
-    ip           = string
-    sn           = string
+    ip = string
+    sn = string
     ums = optional(object({
       autoscale_psksecret = string
       fmg_reg_password    = string
@@ -371,7 +378,7 @@ variable "fmg_integration" {
       api_key             = optional(string, "")
     }))
   })
-  default = null
+  default     = null
   description = <<-EOF
   Register FortiGate instance to the FortiManager.
 

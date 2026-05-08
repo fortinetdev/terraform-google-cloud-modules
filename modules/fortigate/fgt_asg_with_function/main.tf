@@ -1,13 +1,24 @@
 locals {
-  prefix                = "${var.prefix}-"
-  fgt_password          = (local.use_fgt_passwd && var.fgt_password == "") ? random_password.fgt_password[0].result : var.fgt_password
-  autoscale_psksecret   = var.cloud_function.autoscale_psksecret == "" ? random_password.autoscale_psksecret[0].result : var.cloud_function.autoscale_psksecret
-  bucket_name           = "${var.prefix}-bucket-${random_string.bucket_id.result}"
+  prefix          = "${var.prefix}-"
+  deploy_function = try(var.fmg_integration.ums, null) == null && var.cloud_function != null ? true : false
+  fgt_password    = (local.use_fgt_passwd && var.fgt_password == "") ? random_password.fgt_password[0].result : var.fgt_password
+  autoscale_psksecret = (
+    try(var.fmg_integration.ums, null) != null
+    ? var.fmg_integration.ums.autoscale_psksecret
+    : var.cloud_function != null
+    ? (
+      var.cloud_function.autoscale_psksecret == ""
+      ? random_password.autoscale_psksecret[0].result
+      : var.cloud_function.autoscale_psksecret
+    )
+    : ""
+  )
+  bucket_name           = local.deploy_function ? "${var.prefix}-bucket-${random_string.bucket_id[0].result}" : ""
   zone_mode             = (var.zone != "" && length(var.zones) == 0) ? "single" : "multiple"
   iam_member            = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].member : data.google_service_account.iam[0].member
   service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].email : var.service_account_email
   use_fgt_passwd        = !var.special_behavior.disable_secret_manager
-  use_fortiflex_passwd  = !var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != ""
+  use_fortiflex_passwd  = local.deploy_function ? (!var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != "") : false
   image_source          = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
   image_source_hash     = substr(sha1(local.image_source), 0, 8)
   license_type          = can(regex("fortinet-fgtondemand-", local.image_source)) ? "PAYG" : "BYOL"
@@ -28,7 +39,7 @@ resource "random_password" "fgt_password" {
 }
 
 resource "random_password" "autoscale_psksecret" {
-  count   = var.cloud_function.autoscale_psksecret == "" ? 1 : 0
+  count   = local.deploy_function ? (var.cloud_function.autoscale_psksecret == "" ? 1 : 0) : 0
   length  = 16
   special = false
 }
@@ -44,20 +55,21 @@ data "google_service_account" "iam" {
 }
 
 resource "google_storage_bucket_iam_member" "bucket_access" {
-  bucket = google_storage_bucket.gcf_bucket.name
+  count  = local.deploy_function ? 1 : 0
+  bucket = google_storage_bucket.gcf_bucket[0].name
   role   = "roles/storage.admin"
   member = local.iam_member
 }
 
 resource "google_secret_manager_secret_iam_member" "fortiflex_password" {
-  count     = local.use_fortiflex_passwd ? 1 : 0
+  count     = local.deploy_function && local.use_fortiflex_passwd ? 1 : 0
   secret_id = google_secret_manager_secret.fortiflex_password[0].id
   role      = "roles/secretmanager.secretAccessor"
   member    = local.iam_member
 }
 
 resource "google_secret_manager_secret_iam_member" "instance_password" {
-  count     = local.use_fgt_passwd ? 1 : 0
+  count     = local.deploy_function && local.use_fgt_passwd ? 1 : 0
   secret_id = google_secret_manager_secret.instance_password[0].id
   role      = "roles/secretmanager.secretAccessor"
   member    = local.iam_member

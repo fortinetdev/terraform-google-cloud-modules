@@ -4,22 +4,22 @@ Autoscale FortiGate with Load Balancer Sandwich offers a dynamically scalable ne
 
 ## Architecture
 
-The "autoscale_fgt_lb_sandwich" Terraform project comprises an `Auto-Scale FortiGate Group`, two `VPCs`, an `External Load Balancer`, and an `Internal Load Balancer`. It uses `Google Cloud Function` and `Firestore Database` to designate a primary FortiGate and to manage license deployment across the FortiGates. It uses `Google Bucket Storage` to store cloud function code and license files.
+The "autoscale_fgt_lb_sandwich" Terraform project comprises an `Auto-Scale FortiGate Group`, two `VPCs`, an `External Load Balancer`, and an `Internal Load Balancer`. By default, it uses `Google Cloud Function` and `Firestore Database` to designate a primary FortiGate and to manage license deployment across the FortiGates. It uses `Google Bucket Storage` to store cloud function code and license files. If `fmg_integration.ums` is configured, the project uses FortiManager User Managed Scaling (UMS) instead. In UMS mode, Cloud Function and Firestore resources are skipped, and FortiManager handles device onboarding, license installation, and autoscale management.
 
 **Architecture Diagram:**
 ![Diagram](./images/autoscale_fgt_lb_sandwich.svg)
 
-The `Auto-Scale FortiGate Group` consists of dynamically scalable FortiGates, including one primary FortiGate VM and potentially multiple secondary FortiGate VMs. Configurations are set on the primary FortiGate and automatically synchronized across all secondary FortiGates. If the primary FortiGate fail, the Google Cloud Function will promote the oldest secondary FortiGate to take its place.
+The `Auto-Scale FortiGate Group` consists of dynamically scalable FortiGates, including one primary FortiGate VM and potentially multiple secondary FortiGate VMs. Configurations are set on the primary FortiGate and automatically synchronized across all secondary FortiGates. In the default Cloud Function mode, if the primary FortiGate fails, the Google Cloud Function will promote the oldest secondary FortiGate to take its place.
 
 Each FortiGate is equipped with two network interfaces (NICs): one connects to the `External VPC` and the other to the `Internal VPC`.
 
 Your VPCs will establish a VPC peering connection with the `Internal VPC`. All outbound traffic is then directed to the `Internal Load Balancer` and passed on to the `Auto-Scale FortiGate Group`. It is crucial that your VPCs do not retain a default route ("0.0.0.0/0") to ensure traffic is properly routed through this architecture.
 
-The roles of `Google Cloud Function` and `Firestore Database` include selecting the primary FortiGate and administering license injections into the FortiGates.
+In the default Cloud Function mode, `Google Cloud Function` and `Firestore Database` select the primary FortiGate and administer license injection into the FortiGates.
 
 ## Requirements
 
-Following Google APIs must be enabled:
+In the default Cloud Function mode, the following Google APIs must be enabled:
 - eventarc.googleapis.com
 - firestore.googleapis.com # And *(default)* database in Native mode.
 - storage.googleapis.com
@@ -31,7 +31,7 @@ Following Google APIs must be enabled:
 - run.googleapis.com
 - logging.googleapis.com
 
-Firestore *"(default)"* database must be created in Native mode before using this module. The *"(default)"* database is the Firestore default database. If it does not exist, please create it manually.
+Firestore *"(default)"* database must be created in Native mode before using the default Cloud Function mode. The *"(default)"* database is the Firestore default database. If it does not exist, please create it manually.
 ```
 # Using this script to create the "(default)" database.
 # Please do not destroy it once it is created.
@@ -44,9 +44,11 @@ resource "google_firestore_database" "database" {
 ```
 Please do not destroy *"(default)"* database once it is created. Please do not try to delete and recreate "google_firestore_database", otherwise, an error may occur.
 
+If `fmg_integration.ums` is configured, Cloud Function and Firestore resources are not created. The Cloud Function-specific API requirements and the Firestore database requirement above do not apply in UMS mode.
+
 ## How To Deploy
 
-You can find the template in [`/examples/autoscale_fgt_lb_sandiwch/terraform.tfvars.template`](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/examples/autoscale_fgt_lb_sandwich/terraform.tfvars.template)
+You can find the template in [`/examples/autoscale_fgt_lb_sandwich/terraform.tfvars.template`](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/examples/autoscale_fgt_lb_sandwich/terraform.tfvars.template)
 
 #### Project Variables:
 ```
@@ -59,7 +61,7 @@ zones   = ["<YOUR-OWN-VALUE1>",     # e.g., ["us-central1-b", "us-central1-c"]. 
 # IAM variables (Optional)
 # service_account_email = "example@<your-project-name>.iam.gserviceaccount.com"
 # The e-mail address of the service account. This service account will control the cloud function created by this project.
-# This service account should already have "roles/datastore.user", "roles/compute.viewer" and "roles/run.invoker".
+# This service account should already have "roles/datastore.user" and "roles/compute.viewer".
 # If this variable is not specified, the default Google Compute Engine service account is used.
 ```
 Modify these variables based on your needs.
@@ -81,7 +83,9 @@ fgt_has_public_ip = false           # If set to true, port1 of all FGTs will hav
 # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
 # If both are provided, "image_source" will be used, and "image_type" will be ignored.
 image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
-                                    # fortigate-76-byol: bring your own licenses, you need to specify cloud_function->license_source;
+                                    # fortigate-76-byol: bring your own licenses.
+                                    # In the default Cloud Function mode, you need to specify cloud_function->license_source.
+                                    # In UMS mode, FortiManager handles license installation.
                                     # fortigate-76-payg: pay as you go, you don't need to specify license_source.
 # image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
 
@@ -106,7 +110,7 @@ The variable `image_type` and variable `image_source` are mutually exclusive, on
 `image_type` represents the type of FGT image. You can use the command `gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq` to get all possible values.
 
 - "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to bring your own licenses (byol). You need to specify your FortiGate license source in `cloud_function -> license_source`.
-- "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
+- "fortigate-76-payg" means the FGT image is the latest patch of FGT 7.6, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
 
 `image_source` specifies the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
 After deploying the project, modifying this variable only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.
@@ -152,6 +156,8 @@ Parameters for external and internal load balancers.
 You can leave most variables at their default values, except for `internal_lb -> frontend_ip`, which should be in the `internal_subnet` IP range.
 
 #### Cloud Function Variables:
+This section applies to the default Cloud Function mode. If `fmg_integration.ums` is configured, all parameters under `cloud_function` are ignored.
+
 ```
 cloud_function = {
   function_ip_range   = "192.168.8.0/28"   # Cloud function needs to have its own CIDR ip range ending with "/28", which cannot be used by other resources.
@@ -330,13 +336,32 @@ In addition to the variable config_script, you can also save the configuration s
 
 If you specify both config_script and config_file, this terraform project will upload both of them.
 
+#### Others
+Configure `fmg_integration.ums` to enable FortiManager UMS. When UMS is enabled, all parameters under `cloud_function` are ignored. If you use a BYOL FortiGate image, `fmg_integration.ums.api_key` is required.
+
+```
+# FortiManager integration
+fmg_integration = {
+  ip = "<Your FMG IP>"             # The public IP address of the FortiManager.
+  sn = "<Your FMG Serial Number>"  # The serial number of the FortiManager.
+  ums = {
+    autoscale_psksecret = "<RANDOM-STRING>"       # The secret key used to synchronize information between FortiGates.
+    fmg_reg_password    = "<FMG_REGISTER_PASSWORD>"  # The password used to register the FortiGate to the FortiManager.
+    sync_interface      = "port1"                 # The interface used to synchronize information between FortiGates.
+    api_key             = "<FMG_API_KEY>"         # FortiManager API key. Required when the FortiGate image is BYOL.
+  }
+}
+```
+
 ## FortiGates Licenses
 
 To use FortiGates, you need to provide the necessary licenses. Here are the available options:
 
+In UMS mode, configure BYOL license pools or FortiFlex on FortiManager. All parameters under `cloud_function` are ignored.
+
 1. Set `image_type` as "fortigate-xx-payg" (e.g., "fortigate-76-payg"). With this option, you do not need to specify a separate license source, but you will be charged additional license fees in GCP based on the number of CPU cores (vCPUs) of the instance.
 
-2. **(RECOMMENDED)** Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "file", and place your license files (.lic files) in the `cloud_function->->license_file_folder` folder.
+2. **(RECOMMENDED)** Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "file", and place your license files (.lic files) in the `cloud_function->license_file_folder` folder.
 
 3. Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "fortiflex" and properly set `cloud_function->fortiflex`. Use `cloud_function->fortiflex->config` to specify a digital ID of your configuration.
   - GUI method: Visit the [fortiflex platform](https://support.fortinet.com/flexvm/), create a "FortiGate Virtual Machine" configuration and generate several entitlements based on this configuration.  
@@ -348,7 +373,7 @@ To use FortiGates, you need to provide the necessary licenses. Here are the avai
 
 After deploying this terraform project, the `config_script` and contents within the `config_file` become immutable. Subsequent modifications to the `config_script` or the `config_file` will not affect the configuration of existing FortiGates.
 
-In "Google Cloud Firestore -> (default) -> \<YOUR-PROJECT-PREFIX\> -> GLOBAL", you can access the global information of this terraform project. The `"primary_ip_list"` (e.g., ["192.168.0.2", "192.168.4.2"]) indicates the IPs of the primary FortiGate. The first IP is in the `External VPC` and the second IP is in the `Internal VPC`. If you have already specified `protected_vpc`, any VM within your `protected_vpc` can SSH into the primary FortiGate. Any changes made to the configuration of the primary FortiGate will propagate automatically to all secondary FortiGates. If no `protected_vpc` has been specified, you may set up a VM in either the `External VPC` or the `Internal VPC` to SSH into the primary FortiGate.
+In the default Cloud Function mode, you can access the global information of this terraform project in "Google Cloud Firestore -> (default) -> \<YOUR-PROJECT-PREFIX\> -> GLOBAL". The `"primary_ip_list"` (e.g., ["192.168.0.2", "192.168.4.2"]) indicates the IPs of the primary FortiGate. The first IP is in the `External VPC` and the second IP is in the `Internal VPC`. If you have already specified `protected_vpc`, any VM within your `protected_vpc` can SSH into the primary FortiGate. Any changes made to the configuration of the primary FortiGate will propagate automatically to all secondary FortiGates. If no `protected_vpc` has been specified, you may set up a VM in either the `External VPC` or the `Internal VPC` to SSH into the primary FortiGate.
 
 The default username is `"admin"`. You can get the password by using the command `terraform output fgt_password`
 

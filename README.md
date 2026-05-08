@@ -1,4 +1,4 @@
-![Fortinet logo|](https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Fortinet_logo.svg/320px-Fortinet_logo.svg.png)
+![Fortinet logo|](https://upload.wikimedia.org/wikipedia/commons/6/62/Fortinet_logo.svg)
 
 ## Terraform modules for Fortinet VM products on GCP
 
@@ -15,11 +15,11 @@ Please click the following links for visual diagrams, requirements, example depl
 ### Examples
 1. [Autoscale-FGT-LB-Sandwich](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/autoscale_fgt_lb_sandwich.md):
     
-    Autoscale FortiGate with Load Balancer Sandwich uses FortiGates as a firewall between your VPCs and the Internet. It offers a dynamically scalable FortiGate Group that efficiently manages the traffic flowing in and out of your VPCs.
+    Autoscale FortiGate with Load Balancer Sandwich uses FortiGates as a firewall between your VPCs and the Internet. It offers a dynamically scalable FortiGate Group that efficiently manages the traffic flowing in and out of your VPCs. This example supports [UMS feature](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_ums.md).
 
 2. [Autoscale-FGT-as-Hub](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/autoscale_fgt_as_hub.md):
     
-    Utilize Autoscale FortiGate as a central hub to connect up to eight existing VPCs. FortiGates connect your VPCs and manage traffic between VPCs.
+    Utilize Autoscale FortiGate as a central hub to connect up to eight existing VPCs. FortiGates connect your VPCs and manage traffic between VPCs. This example supports [UMS feature](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_ums.md).
 
 ### Modules
 1. [generic_vm_standalone](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/module_generic_vm_standalone.md)
@@ -30,9 +30,6 @@ Please click the following links for visual diagrams, requirements, example depl
 2. [Single FortiGate](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/fgt_single.md)  (Deprecated, please use [generic_vm_standalone](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/module_generic_vm_standalone.md)):
 
     You can use this module to quickly deploy one single FortiGate.
-
-    This module can also be used to create FortiManager and FortiAnalyzer if you change the `image_type` or `image_source` to the [target value](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md#image-list).
-
 
 
 ## How to Use Examples/Modules:
@@ -62,6 +59,7 @@ module "your_module_name" {
 - [How to Specify Image](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md)
 - [What is Cloud Function](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_function.md)
 - [Useful GCP Modules](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_gcp_modules.md)
+- [How to use FortiManager to manage the autoscale (UMS)](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_ums.md)
 
 ## Request, Question or Issue
 

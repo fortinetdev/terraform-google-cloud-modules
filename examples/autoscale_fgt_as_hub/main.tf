@@ -2,6 +2,7 @@ locals {
   prefix             = "${var.prefix}-"
   config_file_script = var.config_file != "" ? file(var.config_file) : ""
   config_script      = var.config_script != "" ? "${var.config_script}\n${local.config_file_script}" : local.config_file_script
+  deploy_function    = try(var.fmg_integration.ums, null) == null && var.cloud_function != null
   interfaces_need_lb = {
     for ni in var.network_interfaces : ni.network_name => ni
     if ni.internal_lb != null
@@ -16,7 +17,7 @@ locals {
       ni.additional_variables != null ? ni.additional_variables : {}
     )
   ]
-  func_port_index = tonumber(regex("port(\\d+)", var.cloud_function.cloud_func_interface)[0]) - 1
+  func_port_index = local.deploy_function ? tonumber(regex("port(\\d+)", var.cloud_function.cloud_func_interface)[0]) - 1 : 0
 }
 
 # FGT instance
@@ -39,7 +40,7 @@ module "fortigate_asg" {
   additional_disk    = var.additional_disk
   config_script      = local.config_script
   network_tags       = var.network_tags
-  cloud_function = {
+  cloud_function = local.deploy_function ? {
     vpc_network                   = var.network_interfaces[local.func_port_index].network_name
     function_ip_range             = var.cloud_function.function_ip_range
     license_source                = var.cloud_function.license_source
@@ -57,7 +58,7 @@ module "fortigate_asg" {
         HEALTHCHECK_PORT     = var.autoscaler.autohealing.health_check_port
       }
     )
-  }
+  } : null
   bucket           = var.bucket
   autoscaler       = var.autoscaler
   fmg_integration  = var.fmg_integration

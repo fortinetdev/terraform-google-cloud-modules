@@ -2,7 +2,7 @@
 project = "<YOUR-OWN-VALUE>"        # Your GCP project name.
 prefix  = "fgt-hub"                 # Prefix of the resources in this project. It should be unique to avoid name conflict between projects.
 region  = "<YOUR-OWN-VALUE>"        # e.g., "us-central1"
-# zone  = "<YOUR-OWN-VALUE>"        # e.g., "us-central1-a". Deploy FortiGates in a signle zone.
+# zone  = "<YOUR-OWN-VALUE>"        # e.g., "us-central1-a". Deploy FortiGates in a single zone.
 zones   = ["<YOUR-OWN-VALUE-1>",    # e.g., ["us-central1-b", "us-central1-c"]. Deploy FortiGates across multiple zones.
            "<YOUR-OWN-VALUE-2>"]    # Variable "zone" is mutually exclusive with variable "zones". If neither is specified, GCP will select 3 zones for you.
 
@@ -20,7 +20,9 @@ machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
 # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
 # If both are provided, "image_source" will be used, and "image_type" will be ignored.
 image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
-                                    # fortigate-76-byol: bring your own licenses, you need to specify cloud_function->license_source;
+                                    # fortigate-76-byol: bring your own licenses.
+                                    # In the default Cloud Function mode, you need to specify cloud_function->license_source.
+                                    # In UMS mode, FortiManager handles license installation.
                                     # fortigate-76-payg: pay as you go, you don't need to specify license_source.
 # image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
 
@@ -32,7 +34,7 @@ image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
 
 # Network
 network_interfaces = [
-  # Port 1 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB) and a route to the ILB.
+  # Port 1 of your FortiGate. For this interface, this project creates an internal load balancer (ILB) and a route to the ILB.
   {
     network_name  = "user1-network"        # Name of your network.
     subnet_name   = "user1-subnet"         # Name of your subnet.
@@ -42,7 +44,7 @@ network_interfaces = [
                                            # And all traffic to "ip_range_route_to_lb" will be routed to the internal load balancer (ilb) in this subnet.
     }
   },
-  # Port 2 of your FortiGate. For this interface, this prject creates an internal load balancer (ILB). (No route to the ILB).
+  # Port 2 of your FortiGate. For this interface, this project creates an internal load balancer (ILB). (No route to the ILB).
   {
     network_name = "user2-network"
     subnet_name  = "user2-subnet"
@@ -67,6 +69,7 @@ network_tags = ["<YOUR-OWN-VALUE1>", "<YOUR-OWN-VALUE2>"]  # The list of network
 ha_sync_interface = "port4"                # Please make sure you at least have N interfaces specified in "network_interfaces" if you set it to "portN".
 
 # Cloud function (Manage FGT synchronization and inject license to FGT.)
+# If fmg_integration.ums is configured, all parameters under cloud_function are ignored.
 cloud_function = {
   cloud_func_interface = "port1"           # To communicate with FGTs, the Cloud Function must be connected to the VPC where FGTs also exist.
                                            # By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
@@ -179,14 +182,15 @@ EOF
 # config_file = "<YOUR-OWN-VALUE>" # e.g., your_config_file.conf
 
 # Others
-# # FortiManager integration
+# # FortiManager integration. Uncomment fmg_integration.ums to enable FortiManager UMS.
+# # When UMS is enabled, all parameters under cloud_function are ignored.
 # fmg_integration = {
 #   ip = "<Your FMG IP>"             # The public IP address of the FortiManager.
 #   sn = "<Your FMG Serial Number>"  # The serial number of the FortiManager.
 #   ums = {
 #     autoscale_psksecret = "<RANDOM-STRING>"  # The secret key used to synchronize information between FortiGates.
-#     fmg_reg_password    = "fmg_reg_passwd>"  # The password used to register the FortiGate to the FortiManager.
+#     fmg_reg_password    = "<FMG_REGISTER_PASSWORD>"  # The password used to register the FortiGate to the FortiManager.
 #     sync_interface      = "port1"            # The interface used to synchronize information between FortiGates.
-#     api_key             = ""                 # The API key used to register the FortiGate to the FortiManager. Only used when license type is BYOL.
+#     api_key             = "<FMG_API_KEY>"    # FortiManager API key. Required when the FortiGate image is BYOL.
 #   }
 # }

@@ -270,13 +270,16 @@ variable "cloud_function" {
       ingress_settings                 = optional(string, "ALLOW_ALL")
       egress_settings                  = optional(string, "PRIVATE_RANGES_ONLY")
     }), {})
-    build_service_account_email = optional(string, "")
+    build_service_account_email   = optional(string, "")
     trigger_service_account_email = optional(string, "")
-    additional_variables        = optional(map(string), {})
+    additional_variables          = optional(map(string), {})
   })
+  default     = null
   description = <<-EOF
     Parameters for Cloud Function. The Cloud Function is used to inject licenses to FGTs,
     upload user-specified configurations and manage the FGT autoscale group.
+    This variable is required unless `fmg_integration.ums` is specified.
+    If `fmg_integration.ums` is specified, all parameters under this variable are ignored.
 
     Options:
 
@@ -285,7 +288,7 @@ variable "cloud_function" {
           By default, this project assumes the Cloud Function connects to the first VPC you specified in "network_interfaces", and configure your FGTs through port1.
           You can also set it to "port2", "port3", ..., "port8" to force the Cloud Function to connect to other VPC and communicate with your FortiGates through that port,
           but you need to specify the corresponding route of FGTs in "config_script" or "config_file" so FGTs can reply to the Cloud Function requests from "cloud_function.function_ip_range".
-        - function_ip_range : (Required | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
+        - function_ip_range : (Required unless fmg_integration.ums is specified | string) Cloud function needs to have its only CIDR ip range ending with "/28", which cannot be used by other resources. Example "10.1.0.0/28".
           This IP range subnet cannot be used by other resources, such as VMs, Private Service Connect, or load balancers.
           A static route will be created in the FGT that routes data destined for "cloud_function.function_ip_range" to port "cloud_function.cloud_func_interface".
         - license_source : (Optional | string | default:"none") The source of license if your image_type is "byol".
@@ -341,7 +344,11 @@ variable "cloud_function" {
     ```
   EOF
   validation {
-    condition     = can(regex("^port[1-8]$", var.cloud_function.cloud_func_interface))
+    condition     = var.cloud_function != null || try(var.fmg_integration.ums, null) != null
+    error_message = "The cloud_function variable must be specified when fmg_integration.ums is not specified."
+  }
+  validation {
+    condition     = var.cloud_function == null || can(regex("^port[1-8]$", var.cloud_function.cloud_func_interface))
     error_message = "The cloud_func_interface must be one of 'port1', 'port2', ..., 'port8'."
   }
 }
@@ -427,8 +434,8 @@ variable "config_file" {
 
 variable "fmg_integration" {
   type = object({
-    ip           = string
-    sn           = string
+    ip = string
+    sn = string
     ums = optional(object({
       autoscale_psksecret = string
       fmg_reg_password    = string
@@ -437,7 +444,7 @@ variable "fmg_integration" {
       api_key             = optional(string, "")
     }))
   })
-  default = null
+  default     = null
   description = <<-EOF
   Register FortiGate instance to the FortiManager.
 

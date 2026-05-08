@@ -1,11 +1,13 @@
 # Function Trigger
 resource "google_pubsub_topic" "topic" {
-  name = "${local.prefix}topic"
+  count = local.deploy_function ? 1 : 0
+  name  = "${local.prefix}topic"
 }
 
 resource "google_logging_project_sink" "topic" {
+  count                  = local.deploy_function ? 1 : 0
   name                   = "${local.prefix}sink"
-  destination            = "pubsub.googleapis.com/${google_pubsub_topic.topic.id}"
+  destination            = "pubsub.googleapis.com/${google_pubsub_topic.topic[0].id}"
   filter                 = <<-EOT
     resource.type="gce_instance" AND
     logName="projects/${var.project}/logs/cloudaudit.googleapis.com%2Factivity" AND
@@ -18,17 +20,19 @@ resource "google_logging_project_sink" "topic" {
 
 # Grant writer access because of unique_writer_identity in topic
 resource "google_pubsub_topic_iam_binding" "pubsub_iam" {
-  topic = google_pubsub_topic.topic.name
+  count = local.deploy_function ? 1 : 0
+  topic = google_pubsub_topic.topic[0].name
   role  = "roles/pubsub.publisher"
 
   members = [
-    google_logging_project_sink.topic.writer_identity,
+    google_logging_project_sink.topic[0].writer_identity,
     local.iam_member
   ]
 }
 
 # Bucket
 resource "google_storage_bucket" "gcf_bucket" {
+  count                       = local.deploy_function ? 1 : 0
   name                        = local.bucket_name
   location                    = var.region
   force_destroy               = true
@@ -36,6 +40,7 @@ resource "google_storage_bucket" "gcf_bucket" {
 }
 
 resource "random_string" "bucket_id" {
+  count   = local.deploy_function ? 1 : 0
   length  = 8
   lower   = true
   upper   = false
@@ -44,21 +49,22 @@ resource "random_string" "bucket_id" {
 }
 
 resource "google_storage_bucket_object" "license_files" {
-  for_each = fileset(var.cloud_function.license_file_folder, "*.lic")
+  for_each = local.deploy_function ? fileset(var.cloud_function.license_file_folder, "*.lic") : toset([])
   name     = "licenses/${each.value}"
-  bucket   = google_storage_bucket.gcf_bucket.name
+  bucket   = google_storage_bucket.gcf_bucket[0].name
   source   = "${var.cloud_function.license_file_folder}/${each.value}"
 }
 
 resource "google_storage_bucket_object" "function_zip" {
+  count  = local.deploy_function ? 1 : 0
   name   = "function-${local.cloud_function_hash}.zip"
-  bucket = google_storage_bucket.gcf_bucket.name
+  bucket = google_storage_bucket.gcf_bucket[0].name
   source = "${path.module}/cloud_function.zip"
 }
 
 # Save secret password, need to enable Secret Manager API
 resource "google_secret_manager_secret" "fortiflex_password" {
-  count     = local.use_fortiflex_passwd ? 1 : 0
+  count     = local.deploy_function && local.use_fortiflex_passwd ? 1 : 0
   secret_id = "${local.prefix}fortiflex-password"
 
   replication {
@@ -67,13 +73,13 @@ resource "google_secret_manager_secret" "fortiflex_password" {
 }
 
 resource "google_secret_manager_secret_version" "fortiflex_password" {
-  count       = local.use_fortiflex_passwd ? 1 : 0
+  count       = local.deploy_function && local.use_fortiflex_passwd ? 1 : 0
   secret      = google_secret_manager_secret.fortiflex_password[0].id
   secret_data = var.cloud_function.fortiflex.password
 }
 
 resource "google_secret_manager_secret" "instance_password" {
-  count     = local.use_fgt_passwd ? 1 : 0
+  count     = local.deploy_function && local.use_fgt_passwd ? 1 : 0
   secret_id = "${local.prefix}instance-password"
 
   replication {
@@ -82,13 +88,14 @@ resource "google_secret_manager_secret" "instance_password" {
 }
 
 resource "google_secret_manager_secret_version" "instance_password" {
-  count       = local.use_fgt_passwd ? 1 : 0
+  count       = local.deploy_function && local.use_fgt_passwd ? 1 : 0
   secret      = google_secret_manager_secret.instance_password[0].id
   secret_data = local.fgt_password
 }
 
 # Cloud Function
 resource "google_cloudfunctions2_function" "init_instance" {
+  count    = local.deploy_function ? 1 : 0
   name     = "${local.prefix}function"
   location = var.region
   build_config {
@@ -97,8 +104,8 @@ resource "google_cloudfunctions2_function" "init_instance" {
     service_account = var.cloud_function.build_service_account_email != "" ? "projects/${var.project}/serviceAccounts/${var.cloud_function.build_service_account_email}" : null
     source {
       storage_source {
-        bucket = google_storage_bucket.gcf_bucket.name
-        object = google_storage_bucket_object.function_zip.name
+        bucket = google_storage_bucket.gcf_bucket[0].name
+        object = google_storage_bucket_object.function_zip[0].name
       }
     }
   }
@@ -147,12 +154,12 @@ resource "google_cloudfunctions2_function" "init_instance" {
         version    = "latest"
       }
     }
-    vpc_connector = google_vpc_access_connector.vpc_connector.id
+    vpc_connector = google_vpc_access_connector.vpc_connector[0].id
   }
   event_trigger {
     trigger_region        = var.region
     event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic          = google_pubsub_topic.topic.id
+    pubsub_topic          = google_pubsub_topic.topic[0].id
     retry_policy          = "RETRY_POLICY_DO_NOT_RETRY"
     service_account_email = var.cloud_function.trigger_service_account_email == "" ? null : var.cloud_function.trigger_service_account_email
   }
@@ -174,18 +181,19 @@ resource "google_cloudfunctions2_function" "init_instance" {
 }
 
 resource "time_sleep" "wait_after_function_creation" {
-  count           = var.special_behavior.function_creation_wait_sec > 0 ? 1 : 0
+  count           = local.deploy_function ? (var.special_behavior.function_creation_wait_sec > 0 ? 1 : 0) : 0
   create_duration = "${var.special_behavior.function_creation_wait_sec}s"
   depends_on      = [google_cloudfunctions2_function.init_instance]
 }
 
 resource "time_sleep" "wait_before_function_destruction" {
-  count            = var.special_behavior.function_destruction_wait_sec > 0 ? 1 : 0
+  count            = local.deploy_function ? (var.special_behavior.function_destruction_wait_sec > 0 ? 1 : 0) : 0
   destroy_duration = "${var.special_behavior.function_destruction_wait_sec}s"
   depends_on       = [google_cloudfunctions2_function.init_instance]
 }
 
 resource "google_vpc_access_connector" "vpc_connector" {
+  count         = local.deploy_function ? 1 : 0
   name          = "${local.prefix}vpc-con"
   region        = var.region
   network       = var.cloud_function.vpc_network

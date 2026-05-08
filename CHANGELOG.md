@@ -1,4 +1,19 @@
-## 1.4.4 (Unreleased)
+## 1.4.5 (Unreleased)
+
+## 1.4.4 (May, 8, 2026)
+
+IMPROVEMENTS:
+* Supported FortiGate/FortiManager/FortiAnalyzer 8.0.0;
+* Module `modules/fortinet/generic_vm_standalone`:
+  * Added the latest versions for every Fortinet product;
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Skip creating Cloud Function and Firestore-related resources when UMS mode is enabled (i.e., when fmg_integration.ums is specified);
+* Example `examples/autoscale_fgt_as_hub`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Supported everything changed in Module `fgt_asg_with_function`.
+* Document:
+  * Added new file `/docs/guide_ums.md`.
 
 ## 1.4.3 (February, 4, 2026)
 

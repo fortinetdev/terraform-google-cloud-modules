@@ -2,6 +2,7 @@ locals {
   prefix             = "${var.prefix}-"
   config_file_script = var.config_file != "" ? file(var.config_file) : ""
   config_script      = var.config_script != "" ? "${var.config_script}\n${local.config_file_script}" : local.config_file_script
+  deploy_function    = try(var.fmg_integration.ums, null) == null && var.cloud_function != null
 }
 
 # FGT instance
@@ -34,7 +35,7 @@ module "fortigate_asg" {
   additional_disk = var.additional_disk
   config_script   = local.config_script
   network_tags    = ["external-access", "internal-access"]
-  cloud_function = {
+  cloud_function = local.deploy_function ? {
     vpc_network                   = module.vpc_external.network.self_link
     function_ip_range             = var.cloud_function.function_ip_range
     license_source                = var.cloud_function.license_source
@@ -50,7 +51,7 @@ module "fortigate_asg" {
         HEALTHCHECK_PORT = var.autoscaler.autohealing.health_check_port != 0 ? var.autoscaler.autohealing.health_check_port : var.load_balancer.health_check_port
       }
     )
-  }
+  } : null
   bucket           = var.bucket
   autoscaler       = var.autoscaler
   fmg_integration  = var.fmg_integration
