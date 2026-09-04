@@ -6,6 +6,7 @@ The following examples use this module:
 
 In the default Cloud Function mode, the following Google APIs must be enabled:
 - eventarc.googleapis.com
+- cloudfunctions.googleapis.com
 - firestore.googleapis.com # And *(default)* database in Native mode.
 - storage.googleapis.com
 - compute.googleapis.com
@@ -29,7 +30,7 @@ resource "google_firestore_database" "database" {
 ```
 Please do not destroy *"(default)"* database once it is created. Please do not try to delete and recreate "google_firestore_database", otherwise, an error may occur.
 
-If `fmg_integration.ums` is configured, Cloud Function and Firestore resources are not created. The Cloud Function-specific API requirements and the Firestore database requirement above do not apply in UMS mode.
+If `fmg_integration.ums` is configured, Cloud Function and Firestore resources are not created. In UMS mode, only `compute.googleapis.com` from the API list above is required, and the Firestore database requirement does not apply.
 
 ## Requirements
 

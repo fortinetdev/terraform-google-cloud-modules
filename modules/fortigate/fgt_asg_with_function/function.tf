@@ -49,7 +49,7 @@ resource "random_string" "bucket_id" {
 }
 
 resource "google_storage_bucket_object" "license_files" {
-  for_each = local.deploy_function ? fileset(var.cloud_function.license_file_folder, "*.lic") : toset([])
+  for_each = local.deploy_function ? fileset(nonsensitive(var.cloud_function.license_file_folder), "*.lic") : toset([])
   name     = "licenses/${each.value}"
   bucket   = google_storage_bucket.gcf_bucket[0].name
   source   = "${var.cloud_function.license_file_folder}/${each.value}"
@@ -132,7 +132,6 @@ resource "google_cloudfunctions2_function" "init_instance" {
       ILB_IP_LIST             = jsonencode([for interface in var.network_interfaces : interface.ilb_ip])
       HEALTHCHECK_PORT        = var.autoscaler.autohealing.health_check_port
       },
-      try(var.fmg_integration.ums, null) != null ? { SKIP_CONFIG = "all" } : {},
       var.cloud_function.additional_variables # key-value in this variable can override the previous ones
     )
 

@@ -2,7 +2,9 @@ locals {
   prefix             = "${var.prefix}-"
   config_file_script = var.config_file != "" ? file(var.config_file) : ""
   config_script      = var.config_script != "" ? "${var.config_script}\n${local.config_file_script}" : local.config_file_script
-  deploy_function    = try(var.fmg_integration.ums, null) == null && var.cloud_function != null
+  has_fmg_ums        = nonsensitive(try(var.fmg_integration.ums, null) != null)
+  has_cloud_function = nonsensitive(var.cloud_function != null)
+  deploy_function    = !local.has_fmg_ums && local.has_cloud_function
   interfaces_need_lb = {
     for ni in var.network_interfaces : ni.network_name => ni
     if ni.internal_lb != null

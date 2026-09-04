@@ -3,7 +3,7 @@ variable "prefix" {
   type        = string
   description = "Prefix of all objects in this module. It should be unique to avoid name conflict between projects."
   validation {
-    condition     = (can(regex("^[a-z][a-z0-9-]*$", var.prefix)) || var.prefix == "") && length(var.prefix) <= 15
+    condition     = can(regex("^[a-z][a-z0-9-]*$", var.prefix)) && length(var.prefix) <= 15
     error_message = "The prefix must start with a letter, can only contain lowercase letters, numbers, and hyphens, and must not exceed 15 characters."
   }
 }
@@ -46,7 +46,7 @@ variable "service_account_email" {
   default     = ""
   description = <<-EOF
   Example value: 1234567-compute@developer.gserviceaccount.com
-  The email address of the service account. This service account will control the Cloud Function created by this project.
+  The email address of the service account. This service account will control the Cloud Function and FortiGate instances created by this project.
   This service account should already have "roles/datastore.user" and "roles/compute.viewer".
   If this variable is not specified, the default Google Compute Engine service account is used.
   EOF 
@@ -95,16 +95,16 @@ variable "machine_type" {
 
 variable "image_type" {
   type        = string
-  default     = "fortigate-76-byol"
+  default     = "fortigate-80-byol"
   description = <<-EOF
- The type of public FortiGate Image. Example: "fortigate-76-byol" or "fortigate-76-payg"
+ The type of public FortiGate Image. Example: "fortigate-80-byol" or "fortigate-80-payg"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" takes precedence.
   Use the following command to check all FGT image type:
   "gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq"
 
-  fortigate-76-byol : FortiGate 7.6, bring your own licenses.
+  fortigate-80-byol : FortiGate 8.0, bring your own licenses.
   
-  fortigate-76-payg : FortiGate 7.6, pay as you go. You do not need to provide licenses.
+  fortigate-80-payg : FortiGate 8.0, pay as you go. You do not need to provide licenses.
   EOF
 }
 
@@ -112,7 +112,7 @@ variable "image_source" {
   type        = string
   default     = ""
   description = <<-EOF
-  The source of the custom image. Example: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+  The source of the custom image. Example: "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" takes precedence.
   EOF
 }
@@ -333,7 +333,7 @@ variable "cloud_function" {
     ```
   EOF
   validation {
-    condition     = var.cloud_function != null || try(var.fmg_integration.ums, null) != null
+    condition     = nonsensitive(var.cloud_function != null || try(var.fmg_integration.ums, null) != null)
     error_message = "The cloud_function variable must be specified when fmg_integration.ums is not specified."
   }
 }
@@ -367,7 +367,7 @@ variable "autoscaler" {
     max_instances   = number
     min_instances   = optional(number, 2)
     cooldown_period = optional(number, 600)
-    cpu_utilization = optional(number, 0.9)
+    cpu_utilization = optional(number, 0.8)
     autohealing = optional(object({
       health_check_port   = optional(number, 8008)
       timeout_sec         = optional(number, 5)
@@ -384,7 +384,7 @@ variable "autoscaler" {
         - max_instances    : (Required | number) The maximum number of FGT instances.
         - min_instances    : (Optional | number | default:2) The minimum number of FGT instances.
         - cooldown_period  : (Optional | number | default:600) Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
-        - cpu_utilization  : (Optional | number | default:0.9) Autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances.
+        - cpu_utilization  : (Optional | number | default:0.8) Autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances.
         - autohealing      : (Optional | Object) Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.
             - health_check_port   : (Optional | number | default:8008) The port used for health checks by autohealing. Set it to 0 to disable autohealing.
                                     Otherwise, it should be the same as the variable "load_balancer.health_check_port" to avoid unexpected behavior.
@@ -399,7 +399,7 @@ variable "autoscaler" {
         max_instances   = 10
         min_instances   = 2
         cooldown_period = 600
-        cpu_utilization = 0.9
+        cpu_utilization = 0.8
         scale_in_control_sec = 300
     }
     ```

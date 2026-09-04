@@ -1,13 +1,17 @@
 locals {
-  prefix          = "${var.prefix}-"
-  deploy_function = try(var.fmg_integration.ums, null) == null && var.cloud_function != null ? true : false
-  fgt_password    = (local.use_fgt_passwd && var.fgt_password == "") ? random_password.fgt_password[0].result : var.fgt_password
+  prefix                       = "${var.prefix}-"
+  has_fmg_ums                  = nonsensitive(try(var.fmg_integration.ums, null) != null)
+  has_cloud_function           = nonsensitive(var.cloud_function != null)
+  deploy_function              = !local.has_fmg_ums && local.has_cloud_function
+  generate_fgt_password        = nonsensitive(local.use_fgt_passwd && var.fgt_password == "")
+  generate_autoscale_psksecret = local.deploy_function ? nonsensitive(var.cloud_function.autoscale_psksecret == "") : false
+  fgt_password                 = local.generate_fgt_password ? random_password.fgt_password[0].result : var.fgt_password
   autoscale_psksecret = (
-    try(var.fmg_integration.ums, null) != null
+    local.has_fmg_ums
     ? var.fmg_integration.ums.autoscale_psksecret
-    : var.cloud_function != null
+    : local.has_cloud_function
     ? (
-      var.cloud_function.autoscale_psksecret == ""
+      local.generate_autoscale_psksecret
       ? random_password.autoscale_psksecret[0].result
       : var.cloud_function.autoscale_psksecret
     )
@@ -18,7 +22,7 @@ locals {
   iam_member            = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].member : data.google_service_account.iam[0].member
   service_account_email = var.service_account_email == "" ? data.google_compute_default_service_account.default[0].email : var.service_account_email
   use_fgt_passwd        = !var.special_behavior.disable_secret_manager
-  use_fortiflex_passwd  = local.deploy_function ? (!var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != "") : false
+  use_fortiflex_passwd  = local.deploy_function ? nonsensitive(!var.special_behavior.disable_secret_manager && var.cloud_function.fortiflex.password != "") : false
   image_source          = var.image_source != "" ? var.image_source : data.google_compute_image.fgt_image[0].self_link # One of "image_type" and "image_source" must be provided.
   image_source_hash     = substr(sha1(local.image_source), 0, 8)
   license_type          = can(regex("fortinet-fgtondemand-", local.image_source)) ? "PAYG" : "BYOL"
@@ -33,13 +37,13 @@ locals {
 }
 
 resource "random_password" "fgt_password" {
-  count   = (local.use_fgt_passwd && var.fgt_password == "") ? 1 : 0
+  count   = local.generate_fgt_password ? 1 : 0
   length  = 16
   special = false
 }
 
 resource "random_password" "autoscale_psksecret" {
-  count   = local.deploy_function ? (var.cloud_function.autoscale_psksecret == "" ? 1 : 0) : 0
+  count   = local.generate_autoscale_psksecret ? 1 : 0
   length  = 16
   special = false
 }
@@ -197,6 +201,16 @@ resource "google_compute_autoscaler" "autoscaler" {
     max_replicas    = var.autoscaler.max_instances
     min_replicas    = var.autoscaler.min_instances
     cooldown_period = var.autoscaler.cooldown_period
+
+    dynamic "scale_in_control" {
+      for_each = var.autoscaler.scale_in_control_sec != 0 ? [1] : []
+      content {
+        max_scaled_in_replicas {
+          fixed = 1
+        }
+        time_window_sec = var.autoscaler.scale_in_control_sec
+      }
+    }
 
     cpu_utilization {
       target = var.autoscaler.cpu_utilization

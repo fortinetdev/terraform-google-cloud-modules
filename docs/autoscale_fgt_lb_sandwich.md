@@ -19,8 +19,11 @@ In the default Cloud Function mode, `Google Cloud Function` and `Firestore Datab
 
 ## Requirements
 
+This example requires Terraform version `>= 1.9.0, < 2.0.0` and Google provider version `>= 5.0, < 8.0`.
+
 In the default Cloud Function mode, the following Google APIs must be enabled:
 - eventarc.googleapis.com
+- cloudfunctions.googleapis.com
 - firestore.googleapis.com # And *(default)* database in Native mode.
 - storage.googleapis.com
 - compute.googleapis.com
@@ -44,7 +47,7 @@ resource "google_firestore_database" "database" {
 ```
 Please do not destroy *"(default)"* database once it is created. Please do not try to delete and recreate "google_firestore_database", otherwise, an error may occur.
 
-If `fmg_integration.ums` is configured, Cloud Function and Firestore resources are not created. The Cloud Function-specific API requirements and the Firestore database requirement above do not apply in UMS mode.
+If `fmg_integration.ums` is configured, Cloud Function and Firestore resources are not created. In UMS mode, only `compute.googleapis.com` from the API list above is required, and the Firestore database requirement does not apply.
 
 ## How To Deploy
 
@@ -61,7 +64,7 @@ zones   = ["<YOUR-OWN-VALUE1>",     # e.g., ["us-central1-b", "us-central1-c"]. 
 
 # IAM variables (Optional)
 # service_account_email = "example@<your-project-name>.iam.gserviceaccount.com"
-# The email address of the service account. This service account will control the Cloud Function created by this project.
+# The email address of the service account. This service account will control the Cloud Function and FortiGate instances created by this project.
 # This service account should already have "roles/datastore.user" and "roles/compute.viewer".
 # If this variable is not specified, the default Google Compute Engine service account is used.
 ```
@@ -74,7 +77,7 @@ If you want to deploy more than one example, please make sure the `prefix` value
 
 #### FortiGate Variables:
 ```
-fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
+fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters). Leave it unspecified or set it to "" to generate one automatically. (Username is admin)
 machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
 fgt_has_public_ip = false           # If set to true, port1 of all FGTs will have a public IP.
 # fgt_hostname = "example-hostname" # The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
@@ -83,12 +86,12 @@ fgt_has_public_ip = false           # If set to true, port1 of all FGTs will hav
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
 # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
 # If both are provided, "image_source" takes precedence and "image_type" is ignored.
-image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
-                                    # fortigate-76-byol: bring your own licenses.
+image_type   = "fortigate-80-byol"  # The type of public FortiGate Image.
+                                    # fortigate-80-byol: bring your own licenses.
                                     # In the default Cloud Function mode, you need to specify cloud_function->license_source.
                                     # In UMS mode, FortiManager handles license installation.
-                                    # fortigate-76-payg: pay as you go. You do not need to specify license_source.
-# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
+                                    # fortigate-80-payg: pay as you go. You do not need to specify license_source.
+# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"  # The source of the custom image.
 
 # Additional disk (Optional)
 # additional_disk = {
@@ -97,7 +100,7 @@ image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
 # }
 ```
 
-`fgt_password` is the password for all FGTs in this project (Username is "admin"). It should be at least 8 characters. If you don't specify it, this project will create one for you. You can find `fgt_password` in the output. **After the deployment, if you change the "admin" user password elsewhere (e.g., through the GUI or CLI), please ensure you also update the password here to allow the Cloud Function to communicate with the FortiGates.**
+`fgt_password` is the password for all FGTs in this project (Username is "admin"). It should be at least 8 characters when specified. The project generates one automatically only when `fgt_password` is unspecified or set to `""`. You can find `fgt_password` in the output. **After the deployment, if you change the "admin" user password elsewhere (e.g., through the GUI or CLI), please ensure you also update the password here to allow the Cloud Function to communicate with the FortiGates.**
 
 `machine_type` represents the Virtual Machine type to deploy FGT.
 Example of predefined machine type: "n1-standard-4", "n2-standard-8", ...
@@ -110,10 +113,10 @@ Specify `image_type` to deploy the latest public FortiGate image, or `image_sour
 
 `image_type` represents the type of FGT image. You can use the command `gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq` to get all possible values.
 
-- "fortigate-76-byol" means the FGT image is the latest patch of FGT 7.6, and you want to bring your own licenses (byol). You need to specify your FortiGate license source in `cloud_function -> license_source`.
-- "fortigate-76-payg" means the FGT image is the latest patch of FGT 7.6, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
+- "fortigate-80-byol" means the FGT image is the latest patch of FGT 8.0, and you want to bring your own licenses (byol). You need to specify your FortiGate license source in `cloud_function -> license_source`.
+- "fortigate-80-payg" means the FGT image is the latest patch of FGT 8.0, and you want to [pay as you go (payg)](https://console.cloud.google.com/marketplace/product/fortigcp-project-001/fortigate-payg). You don't need to specify the FortiGate license source. However, you need to pay an additional license fee in GCP based on the number of CPU cores (vCPU) of the instance.
 
-`image_source` specifies the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+`image_source` specifies the source of the custom image. Example value: "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"
 After deploying the project, modifying this variable only affects newly created FortiGate instances. The image of existing FortiGate instances remains unchanged.
 
 Check [here](https://github.com/fortinetdev/terraform-google-cloud-modules/blob/main/docs/guide_image.md) for more information about image.
@@ -132,7 +135,7 @@ internal_subnet = "192.168.4.0/22"  # The CIDR of the internal VPC for this proj
 ```
 `external_subnet` is the IP range of the external VPC in the architecture diagram. This IP range should only be used by Auto-Scale FortiGates and should not overlap with the IP range of your existing VPCs.
 
-`internal_subnet` is the IP range of the internal VPC in the architecture diagram. This IP range should only be used by Auto-Scale FortiGates and should not overlap with the IP range of your existing VPCs.
+`internal_subnet` is the IP range of the internal VPC in the architecture diagram. This IP range should only be used by Auto-Scale FortiGates and the Internal Load Balancer, and should not overlap with the IP range of your existing VPCs.
 
 `protected_vpc` is a list of your existing VPCs. It is "Your VPC A", "Your VPC B"... in the architecture diagram. If this variable is specified, outbound and inbound traffic from these VPCs will first go through the Auto-Scale FortiGate Group. These VPCs should not have a default route ("0.0.0.0/0"), otherwise their outbound traffic will not be redirected to this project.
 
@@ -154,7 +157,7 @@ load_balancer = {
 ```
 Parameters for external and internal load balancers. 
 
-You can leave most variables at their default values, except for `internal_lb -> front_end_ip`, which should be in the `internal_subnet` IP range.
+You can leave most variables at their default values. If `internal_lb -> front_end_ip` is specified, it should be in the `internal_subnet` IP range.
 
 #### Cloud Function Variables:
 This section applies to the default Cloud Function mode. If `fmg_integration.ums` is configured, all parameters under `cloud_function` are ignored.
@@ -261,7 +264,7 @@ Autoscaler is used to control when to autoscale and control the number of FortiG
 
 `max_instances` is the maximum number of FGT instances you want to create.
 
-`min_instances` is the minimum number of FGT instances. Your auto-scale FortiGate Group will at least have `min_instances` FGTs. This number cannot be less than 2.
+`min_instances` is the minimum number of FGT instances. Your auto-scale FortiGate Group will have at least `min_instances` FGTs.
 
 `cooldown_period` specifies how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve. Please increase this value if the instance takes longer to become ready, especially when `additional_disk` is configured.
 
@@ -360,15 +363,15 @@ To use FortiGates, you need to provide the necessary licenses. Here are the avai
 
 In UMS mode, configure BYOL license pools or FortiFlex on FortiManager. All parameters under `cloud_function` are ignored.
 
-1. Set `image_type` as "fortigate-xx-payg" (e.g., "fortigate-76-payg"). With this option, you do not need to specify a separate license source, but you will be charged additional license fees in GCP based on the number of CPU cores (vCPUs) of the instance.
+1. Set `image_type` as "fortigate-xx-payg" (e.g., "fortigate-80-payg"). With this option, you do not need to specify a separate license source, but you will be charged additional license fees in GCP based on the number of CPU cores (vCPUs) of the instance.
 
-2. **(RECOMMENDED)** Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "file", and place your license files (.lic files) in the `cloud_function->license_file_folder` folder.
+2. **(RECOMMENDED)** Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-80-byol"). Configure `cloud_function->license_source` as "file", and place your license files (.lic files) in the `cloud_function->license_file_folder` folder.
 
-3. Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "fortiflex" and properly set `cloud_function->fortiflex`. Use `cloud_function->fortiflex->config` to specify the numeric configuration ID of your configuration.
+3. Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-80-byol"). Configure `cloud_function->license_source` as "fortiflex" and properly set `cloud_function->fortiflex`. Use `cloud_function->fortiflex->config` to specify the numeric configuration ID of your configuration.
   - GUI method: Visit the [fortiflex platform](https://support.fortinet.com/flexvm/), create a "FortiGate Virtual Machine" configuration and generate several entitlements based on this configuration.  
   - Terraform method: You can use our fortiflexvm Terraform to [create a FortiGate configuration](https://registry.terraform.io/providers/fortinetdev/fortiflexvm/latest/docs/resources/fortiflexvm_config) and get its config ID. You need to [use this config ID to create entitlements](https://registry.terraform.io/providers/fortinetdev/fortiflexvm/latest/docs/resources/fortiflexvm_entitlements_vm) in advance.
 
-4. Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-76-byol"). Configure `cloud_function->license_source` as "file_fortiflex". This setting prioritizes using files to inject licenses into FortiGates initially. If file licenses are depleted, it will use the "fortiflex" method.
+4. Set `image_type` as "fortigate-xx-byol" (e.g, "fortigate-80-byol"). Configure `cloud_function->license_source` as "file_fortiflex". This setting prioritizes using files to inject licenses into FortiGates initially. If file licenses are depleted, it will use the "fortiflex" method.
 
 ## Configure FortiGates after deploying
 

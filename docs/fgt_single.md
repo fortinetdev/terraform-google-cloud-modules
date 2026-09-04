@@ -28,10 +28,10 @@ module "single_fortigate" {
   # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
   # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
   # If both are provided, "image_source" will be used, and "image_type" will be ignored.
-  image_type   = "fortigate-76-byol"        # The type of public FortiGate Image.
-                                            # fortigate-76-byol: bring your own licenses, you need to specify cloud_function->license_source;
-                                            # fortigate-76-payg: pay as you go, you don't need to specify license_source.
-  # image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
+  image_type   = "fortigate-80-byol"        # The type of public FortiGate Image.
+                                            # fortigate-80-byol: bring your own licenses, you need to specify cloud_function->license_source;
+                                            # fortigate-80-payg: pay as you go, you don't need to specify license_source.
+  # image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"  # The source of the custom image.
 
   network_interfaces = [                    # Network interface of your FortiGate
     # Port 1 of your FortiGate

@@ -65,10 +65,10 @@ module "fortigate_example" {
     arch    = "x64"
   }
   # image = {
-  #   family = "fortigate-76-byol"
+  #   family = "fortigate-80-byol"
   # }
   # image = {
-  #   source = "projects/fortigcp-project-001/global/images/fortinet-fgtondemand-762-20250130-001-w-license"
+  #   source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"
   # }
 
   network_interfaces = [                    # Network interface of your VM
@@ -98,7 +98,7 @@ module "fortianalyzer_example" {
     version = "7.6.2"
   }
   # image = {
-  #   family = "fortianalyzer-76-byol"
+  #   family = "fortianalyzer-80-byol"
   # }
   # image = {
   #   source = "projects/fortigcp-project-001/global/images/fortinet-faz-762-20241218-001-w-license"
@@ -135,7 +135,7 @@ module "fortimanager_example" {
     version = "7.6.2"
   }
   # image = {
-  #   family = "fortimanager-76-byol"
+  #   family = "fortimanager-80-byol"
   # }
   # image = {
   #   source = "projects/fortigcp-project-001/global/images/fortinet-fmg-762-20241218-001-w-license"
@@ -247,14 +247,14 @@ module "example_forti_instance" {
     arch    = "x64"
   }
   
-  # 2. Specify the image family (e.g. fortigate-76-byol, fortigate-76-payg).
+  # 2. Specify the image family (e.g. fortigate-80-byol, fortigate-80-payg).
   # image = {
-  #   family = "fortigate-76-byol"
+  #   family = "fortigate-80-byol"
   # }
 
   # 3. Specify the image source.
   # image = {
-  #   source = "projects/fortigcp-project-001/global/images/fortinet-fgtondemand-762-20250130-001-w-license"
+  #   source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"
   # }
 
 

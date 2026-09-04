@@ -204,7 +204,7 @@ module "fortigate_ha" {
   # hostname              = ""                # FGT hostname. If not set, an FGT's hostname will be its license ID.
   # fgt_password    = "<Your password>"       # If this variable is not set, an FGT's password will be its instance ID.
   machine_type    = "n2-standard-8"
-  image_type      = "fortigate-76-payg"
+  image_type      = "fortigate-80-payg"
   additional_disk = { size = 30 }
   ha_mode         = var.ha_mode
   network_interfaces = [

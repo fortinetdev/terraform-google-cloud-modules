@@ -4,8 +4,8 @@
 
 All FortiGate-related modules and examples include two image-related variables: `image_type` and `image_source`. If both are specified, `image_source` takes precedence.
 - `image_type`: Defines the type of public FortiGate image.
-  - `"fortigate-76-byol"` Uses the latest FortiGate 7.6 and Bring Your Own License (BYOL).
-  - `"fortigate-76-payg"` Uses the latest FortiGate 7.6 and Pay-As-You-Go (PAYG), where licensing fees are billed based on the machine type.
+  - `"fortigate-80-byol"` Uses the latest FortiGate 8.0 and Bring Your Own License (BYOL).
+  - `"fortigate-80-payg"` Uses the latest FortiGate 8.0 and Pay-As-You-Go (PAYG), where licensing fees are billed based on the machine type.
 - `image_source`: Specifies a custom image
   - Example format: `"projects/<YOUR-PROJECT-NAME>/global/images/<YOUR-IMAGE-NAME>"`. 
 
@@ -64,8 +64,8 @@ FortiGate has both BYOL (Bring your own license) and PAYG (pay as you go) images
 | Image  | Vaule of `image_source`  |
 |------|------|
 | FGT 8.0.0 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-800-20260423-001-w-license |
-| FGT 7.6.6 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-766-20260129-001-w-license |
-| FGT 7.4.11 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-7411-20260129-001-w-license |
+| FGT 7.6.7 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-767-20260604-001-w-license |
+| FGT 7.4.12 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-7412-20260511-001-w-license |
 | FGT 7.2.13 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-7213-20260202-001-w-license |
 | FGT 7.0.19 PAYG  | projects/fortigcp-project-001/global/images/fortinet-fgtondemand-7019-20260202-001-w-license |
 
@@ -73,8 +73,8 @@ FortiGate has both BYOL (Bring your own license) and PAYG (pay as you go) images
 | Image  | Vaule of `image_source`  |
 |------|------|
 | FGT 8.0.0 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license |
-| FGT 7.6.6 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-766-20260129-001-w-license |
-| FGT 7.4.11 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-7411-20260129-001-w-license |
+| FGT 7.6.7 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-767-20260604-001-w-license |
+| FGT 7.4.12 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-7412-20260511-001-w-license |
 | FGT 7.2.13 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-7213-20260202-001-w-license |
 | FGT 7.0.19 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fgt-7019-20260202-001-w-license |
 
@@ -86,8 +86,8 @@ FortiManager only has BYOL (Bring your own license) images.
 | Image  | Vaule of `image_source`  |
 |------|------|
 | FMG 8.0.0 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-800-20260423-001-w-license |
-| FMG 7.6.6 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-766-20260212-001-w-license |
-| FMG 7.4.10 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-7410-20260212-001-w-license |
+| FMG 7.6.7 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-767-20260604-001-w-license |
+| FMG 7.4.11 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-7411-20260511-001-w-license |
 | FMG 7.2.12 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-7212-20260212-001-w-license |
 | FMG 7.0.16 BYOL  | projects/fortigcp-project-001/global/images/fortinet-fmg-7016-20260212-001-w-license |
 
@@ -98,8 +98,8 @@ FortiAnalyzer only has BYOL (Bring your own license) images.
 | Image  | Vaule of `image_source`  |
 |------|------|
 | FAZ 8.0.0 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-800-20260423-001-w-license |
-| FAZ 7.6.6 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-766-20260212-001-w-license |
-| FAZ 7.4.10 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-7410-20260212-001-w-license |
+| FAZ 7.6.7 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-767-20260604-001-w-license |
+| FAZ 7.4.11 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-7411-20260511-001-w-license |
 | FAZ 7.2.12 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-7212-20260212-001-w-license |
 | FAZ 7.0.16 BYOL  | projects/fortigcp-project-001/global/images/fortinet-faz-7016-20260212-001-w-license |
 
@@ -107,7 +107,7 @@ FortiAnalyzer only has BYOL (Bring your own license) images.
 
 | Image  | Vaule of `image_source`  |
 |------|------|
-| FortiAIOps 3.2.1  | projects/fortigcp-project-001/global/images/fortiaiops-321-build0158-lic |
+| FortiAIOps 3.4.0  | projects/fortigcp-project-001/global/images/fortiaiops-340-build0259-lic |
 
 ### FortiGuest
 

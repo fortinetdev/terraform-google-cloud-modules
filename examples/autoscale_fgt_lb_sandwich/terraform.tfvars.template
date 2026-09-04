@@ -7,12 +7,12 @@ zones   = ["<YOUR-OWN-VALUE-1>",    # e.g., ["us-central1-b", "us-central1-c"]. 
            "<YOUR-OWN-VALUE-2>"]    # Variable "zone" is mutually exclusive with variable "zones". If neither is specified, GCP will select 3 zones for you.
 
 # IAM variables (Optional)
-# service_account_email = "example@example.com"  # The email address of the service account. This service account will control the Cloud Function created by this project.
+# service_account_email = "example@example.com"  # The email address of the service account. This service account will control the Cloud Function and FortiGate instances created by this project.
                                                  # This service account should already have "roles/datastore.user" and "roles/compute.viewer".
                                                  # If this variable is not specified, the default Google Compute Engine service account is used.
 
 # FortiGate variables
-fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters), or this terraform project will create one for you. (Username is admin)
+fgt_password = "<YOUR-OWN-VALUE>"   # Your own value (at least 8 characters). Leave it unspecified or set it to "" to generate one automatically. (Username is admin)
 machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
 fgt_has_public_ip = false           # If set to true, port1 of all FGTs will have a public IP.
 # fgt_hostname = "example-hostname" # The hostname of all FGTs in the autoscale group. If not specified, the FGT's hostname will be its serial number.
@@ -21,12 +21,12 @@ fgt_has_public_ip = false           # If set to true, port1 of all FGTs will hav
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
 # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
 # If both are provided, "image_source" takes precedence and "image_type" is ignored.
-image_type   = "fortigate-76-byol"  # The type of public FortiGate Image.
-                                    # fortigate-76-byol: bring your own licenses.
+image_type   = "fortigate-80-byol"  # The type of public FortiGate Image.
+                                    # fortigate-80-byol: bring your own licenses.
                                     # In the default Cloud Function mode, you need to specify cloud_function->license_source.
                                     # In UMS mode, FortiManager handles license installation.
-                                    # fortigate-76-payg: pay as you go. You do not need to specify license_source.
-# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
+                                    # fortigate-80-payg: pay as you go. You do not need to specify license_source.
+# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"  # The source of the custom image.
 
 # Additional disk (Optional)
 # additional_disk = {

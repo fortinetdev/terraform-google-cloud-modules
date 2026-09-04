@@ -19,12 +19,12 @@ machine_type = "n1-standard-4"      # The Virtual Machine type to deploy FGT.
 # You can use "image_type" to deploy the latest public FortiGate image, or use "image_source" to deploy the custom image.
 # One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs.
 # If both are provided, "image_source" takes precedence and "image_type" is ignored.
-image_type   = "fortigate-76-byol"  # The type of public FortiGate image.
-                                    # fortigate-76-byol: bring your own licenses.
+image_type   = "fortigate-80-byol"  # The type of public FortiGate image.
+                                    # fortigate-80-byol: bring your own licenses.
                                     # In the default Cloud Function mode, you need to specify cloud_function->license_source.
                                     # In UMS mode, FortiManager handles license installation.
-                                    # fortigate-76-payg: pay as you go. You don't need to specify license_source.
-# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"  # The source of the custom image.
+                                    # fortigate-80-payg: pay as you go. You don't need to specify license_source.
+# image_source = "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"  # The source of the custom image.
 
 # Additional disk (Optional)
 # additional_disk = {
@@ -113,7 +113,7 @@ cloud_function = {
 # Autoscaler (When to autoscale and the maximum number of instances.)
 autoscaler = {
   max_instances     = 4     # The maximum number of FGT instances
-  min_instances     = 3     # The minimum number of FGT instances
+  min_instances     = 2     # The minimum number of FGT instances
   cooldown_period   = 600   # Specify how long (seconds) it takes for FGT to initialize from boot time until it is ready to serve.
   cpu_utilization   = 0.8   # Autoscaling signal. If CPU utilization is above this value, Google Cloud will create new FGT instances.
   autohealing = {              # Parameters about autohealing. Autohealing recreates VM instances if your application cannot be reached by the health check.

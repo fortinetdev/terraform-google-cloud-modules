@@ -3,7 +3,7 @@ variable "prefix" {
   type        = string
   description = "Prefix of all objects in this module. It should be unique to avoid name conflict between projects."
   validation {
-    condition     = (can(regex("^[a-z][a-z0-9-]*$", var.prefix)) || var.prefix == "") && length(var.prefix) <= 15
+    condition     = can(regex("^[a-z][a-z0-9-]*$", var.prefix)) && length(var.prefix) <= 15
     error_message = "The prefix must start with a letter, can only contain lowercase letters, numbers, and hyphens, and must not exceed 15 characters."
   }
 }
@@ -288,7 +288,7 @@ variable "cloud_function" {
     ```
   EOF
   validation {
-    condition     = var.cloud_function != null || try(var.fmg_integration.ums, null) != null
+    condition     = nonsensitive(var.cloud_function != null || try(var.fmg_integration.ums, null) != null)
     error_message = "The cloud_function variable must be specified when fmg_integration.ums is not specified."
   }
 }

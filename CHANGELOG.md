@@ -1,5 +1,22 @@
-## 1.4.6 (Unreleased)
+## 1.4.7 (Unreleased)
 
+## 1.4.6 (September 4, 2026)
+
+IMPROVEMENTS:
+* Module `modules/fortigate/fgt_asg_with_function`:
+  * Made `prefix` a required variable;
+  * Added support for `scale_in_control_sec` in single-zone deployments.
+* Example `examples/autoscale_fgt_as_hub`:
+  * Improved documentation consistency across example projects;
+  * Supported everything changed in Module `fgt_asg_with_function`;
+  * Updated template example from FortiGate 7.6 to 8.0;
+* Example `examples/autoscale_fgt_lb_sandwich`:
+  * Improved documentation consistency across example projects;
+  * Supported everything changed in Module `fgt_asg_with_function`;
+  * Updated template example from FortiGate 7.6 to 8.0;
+
+BUG FIXES:
+* Fixed autoscale failures caused by sensitive inputs using `nonsensitive()`.
 
 ## 1.4.5 (July 1, 2026)
 

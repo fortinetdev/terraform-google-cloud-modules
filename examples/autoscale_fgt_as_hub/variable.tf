@@ -3,7 +3,7 @@ variable "prefix" {
   type        = string
   description = "Prefix of all objects in this module. It should be unique to avoid name conflict between projects."
   validation {
-    condition     = (can(regex("^[a-z][a-z0-9-]*$", var.prefix)) || var.prefix == "") && length(var.prefix) <= 15
+    condition     = can(regex("^[a-z][a-z0-9-]*$", var.prefix)) && length(var.prefix) <= 15
     error_message = "The prefix must start with a letter, can only contain lowercase letters, numbers, and hyphens, and must not exceed 15 characters."
   }
 }
@@ -95,16 +95,16 @@ variable "machine_type" {
 
 variable "image_type" {
   type        = string
-  default     = "fortigate-76-byol"
+  default     = "fortigate-80-byol"
   description = <<-EOF
-  The type of public FortiGate image. Example: "fortigate-76-byol" or "fortigate-76-payg"
+  The type of public FortiGate image. Example: "fortigate-80-byol" or "fortigate-80-payg"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" takes precedence.
   Use the following command to check all FGT image types:
   `gcloud compute images list --project=fortigcp-project-001 --filter="family:fortigate*" --format="table[no-heading](family)" | sort | uniq`
 
-  fortigate-76-byol : FortiGate 7.6, bring your own licenses.
+  fortigate-80-byol : FortiGate 8.0, bring your own licenses.
   
-  fortigate-76-payg : FortiGate 7.6, pay as you go. You do not need to provide licenses.
+  fortigate-80-payg : FortiGate 8.0, pay as you go. You do not need to provide licenses.
   EOF
 }
 
@@ -112,7 +112,7 @@ variable "image_source" {
   type        = string
   default     = ""
   description = <<-EOF
-  The source of the custom image. Example: "projects/fortigcp-project-001/global/images/fortinet-fgt-760-20240726-001-w-license"
+  The source of the custom image. Example: "projects/fortigcp-project-001/global/images/fortinet-fgt-800-20260423-001-w-license"
   One of the variables "image_type" and "image_source" must be provided, otherwise an error occurs. If both are provided, "image_source" takes precedence.
   EOF
 }
@@ -344,7 +344,7 @@ variable "cloud_function" {
     ```
   EOF
   validation {
-    condition     = var.cloud_function != null || try(var.fmg_integration.ums, null) != null
+    condition     = nonsensitive(var.cloud_function != null || try(var.fmg_integration.ums, null) != null)
     error_message = "The cloud_function variable must be specified when fmg_integration.ums is not specified."
   }
   validation {
